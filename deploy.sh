@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Déploie une stack Docker Compose (traefik ou portal) sur le VPS.
+# Déploie une stack Docker Compose (traefik, portal ou arcadepipe) sur le VPS.
 # Remplace la séquence manuelle tar/scp/ssh — mêmes commandes, juste
 # regroupées pour ne pas en oublier une pendant un vrai incident.
 #
-# Usage : ./deploy.sh <traefik|portal> [--dry-run]
+# Usage : ./deploy.sh <traefik|portal|arcadepipe> [--dry-run]
 set -euo pipefail
 
 DRY_RUN=false
@@ -11,16 +11,16 @@ STACK=""
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
-    traefik|portal) STACK="$arg" ;;
+    traefik|portal|arcadepipe) STACK="$arg" ;;
     *)
       echo "Argument inconnu : '$arg'" >&2
-      echo "Usage: ./deploy.sh <traefik|portal> [--dry-run]" >&2
+      echo "Usage: ./deploy.sh <traefik|portal|arcadepipe> [--dry-run]" >&2
       exit 1
       ;;
   esac
 done
 if [ -z "$STACK" ]; then
-  echo "Usage: ./deploy.sh <traefik|portal> [--dry-run]" >&2
+  echo "Usage: ./deploy.sh <traefik|portal|arcadepipe> [--dry-run]" >&2
   exit 1
 fi
 
@@ -90,7 +90,13 @@ else
   done
 fi
 
-run ssh -n -i "$SSH_KEY" "root@$HOST" "cd ~/$STACK && docker compose up -d --build"
+# pull avant build : indispensable pour arcadepipe (aucun service "build:",
+# seulement des "image:" publiées par son propre CI sur GHCR — sans pull
+# explicite, `up -d --build` réutiliserait telle quelle l'image déjà
+# présente localement sur la VPS, même si une nouvelle version existe sur
+# le registre). Sans effet néfaste pour traefik/portal (pull ne fait rien
+# de plus pour un service qui a déjà "build:").
+run ssh -n -i "$SSH_KEY" "root@$HOST" "cd ~/$STACK && docker compose pull && docker compose up -d --build"
 
 # Ne garder que le running (:latest) et le snapshot (:previous) — nettoie
 # les générations plus anciennes, devenues orphelines (sans tag) dès que le
@@ -140,6 +146,12 @@ case "$STACK" in
     CODE_GAME="$(curl -sS -o /dev/null -w '%{http_code}' "https://game.pazpop.net/" || echo '???')"
     [ "$CODE_GAME" = "200" ] || ECHEC=true
     ;;
+  arcadepipe)
+    CODE_SITE="$(curl -sS -o /dev/null -w '%{http_code}' "https://arcadepipe.pazpop.net/" || echo '???')"
+    CODE_API="$(curl -sS -o /dev/null -w '%{http_code}' "https://arcadepipe.pazpop.net/api/health" || echo '???')"
+    [ "$CODE_SITE" = "200" ] || ECHEC=true
+    [ "$CODE_API" = "200" ] || ECHEC=true
+    ;;
 esac
 
 echo
@@ -162,6 +174,10 @@ case "$STACK" in
     else
       echo "game.pazpop.net   : ❌ $CODE_GAME"
     fi
+    ;;
+  arcadepipe)
+    [ "$CODE_SITE" = "200" ] && echo "arcadepipe.pazpop.net      : ✅ $CODE_SITE" || echo "arcadepipe.pazpop.net      : ❌ $CODE_SITE"
+    [ "$CODE_API" = "200" ] && echo "arcadepipe.pazpop.net/api  : ✅ $CODE_API" || echo "arcadepipe.pazpop.net/api  : ❌ $CODE_API"
     ;;
 esac
 echo "===================================================="

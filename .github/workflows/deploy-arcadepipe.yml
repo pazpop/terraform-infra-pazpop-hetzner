@@ -1,0 +1,45 @@
+name: Deploy ArcadePipe
+
+# Déclenché automatiquement par le CI du repo applicatif (github.com/pazpop/
+# arcadepipe, public) une fois une nouvelle image poussée sur GHCR — voir
+# .github/workflows/deploy.yml dans ce repo-là, étape "Notifier
+# terraform-infra-pazpop-hetzner". `workflow_dispatch` permet aussi de
+# redéployer manuellement depuis l'onglet Actions sans rien avoir à pousser
+# (utile pour un rollback ou pour retenter après un échec).
+on:
+  repository_dispatch:
+    types: [arcadepipe-published]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # docker-compose.yml (labels Traefik, limites de ressources...) n'est
+      # pas embarqué dans les images : sans cette étape, ses changements ne
+      # seraient jamais répercutés sur la VPS.
+      - name: Sync docker-compose.yml
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: arcadepipe/docker-compose.yml
+          target: ~/arcadepipe
+          strip_components: 1
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/arcadepipe
+            docker compose pull
+            docker compose up -d
+            docker image prune -f

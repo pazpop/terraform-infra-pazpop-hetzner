@@ -14,6 +14,7 @@ Ce projet est réalisé avec l'aide de [Claude](https://claude.com) (Anthropic) 
 | Provisioning initial | cloud-init | Installe Docker au premier boot |
 | Reverse proxy | [Traefik](https://traefik.io/) (`traefik/`) | Point d'entrée public 80/443, TLS auto (Let's Encrypt), routage par labels Docker — mutualisé entre jeux |
 | Portail | Page statique auto-générée (`portal/`) | `game.pazpop.net` liste les jeux déployés (chacun sur son propre sous-domaine, ex: `arcadepipe.pazpop.net`), à partir des labels `pazpop.portal.*` — rien à modifier à la main pour ajouter/retirer un jeu |
+| Jeux | `arcadepipe/` (docker-compose.yml) | Déploiement de [ArcadePipe](https://github.com/pazpop/arcadepipe) (code/CI dans son propre repo public) — ce dossier-ci ne contient que le routage Traefik + les limites de ressources, pas le code du jeu |
 | État Terraform | Local (`terraform.tfstate`, gitignoré) | Un seul opérateur, une seule VPS — pas de backend distant, voir *Choix délibérés* |
 
 ## Fichiers
@@ -25,9 +26,10 @@ variables.tf     # toutes les variables d'entrée
 main.tf          # ressources : clé SSH, firewall, IP, serveur
 outputs.tf       # IP du serveur, commande SSH prête à l'emploi
 cloud-init.yaml  # exécuté au premier boot du VPS (installe Docker)
-deploy.sh        # déploie une stack (traefik ou portal) sur le VPS — tar/scp/ssh/build/up
+deploy.sh        # déploie une stack (traefik, portal ou arcadepipe) sur le VPS — tar/scp/ssh/pull/up
 traefik/         # stack Traefik — se déploie à part, pas via tofu apply (voir traefik/README.md)
 portal/          # page d'accueil auto-générée listant les jeux déployés (voir portal/README.md)
+arcadepipe/      # docker-compose.yml (routage Traefik) pour github.com/pazpop/arcadepipe — voir CI/CD
 ```
 
 ## Utilisation
@@ -43,9 +45,26 @@ tofu apply
 
 `terraform.tfvars` est gitignoré (il contient le token) — ne jamais le committer.
 
-Ensuite, sur le VPS, dans l'ordre : `./deploy.sh traefik` (crée le réseau `traefik-public`, voir `traefik/README.md`), puis `./deploy.sh portal` (`portal/README.md`), puis chaque jeu (ex: `arcadepipe`, son propre `deploy.sh`) qui rejoint `traefik-public` et pose ses labels `pazpop.portal.*` pour apparaître automatiquement sur le portail.
+Ensuite, sur le VPS, dans l'ordre : `./deploy.sh traefik` (crée le réseau `traefik-public`, voir `traefik/README.md`), puis `./deploy.sh portal` (`portal/README.md`), puis `./deploy.sh arcadepipe` (voir *CI/CD* ci-dessous pour le déploiement automatique) — chaque jeu rejoint `traefik-public` et pose ses labels `pazpop.portal.*` pour apparaître automatiquement sur le portail.
 
 La sortie `ssh_command` (`tofu output ssh_command`) donne la commande prête à l'emploi.
+
+## CI/CD — déploiement d'ArcadePipe
+
+Le code et le build d'ArcadePipe vivent dans son propre repo public
+([`pazpop/arcadepipe`](https://github.com/pazpop/arcadepipe)) : son CI build
+et publie les images sur GHCR à chaque push sur `main`, puis déclenche un
+événement `repository_dispatch` vers **ce repo-ci**, qui reçoit l'événement
+(`.github/workflows/deploy-arcadepipe.yml`) et fait le déploiement SSH réel
+(synchronise `arcadepipe/docker-compose.yml`, `docker compose pull && up -d`
+sur la VPS). Le code du jeu ne connaît jamais l'IP du VPS ni les détails de
+Traefik ; ce repo-ci ne connaît jamais le code du jeu.
+
+Secrets à configurer :
+- **Dans `pazpop/terraform-infra-pazpop-hetzner`** (ce repo) : `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` — la connexion SSH vers la VPS, utilisée par `deploy-arcadepipe.yml`.
+- **Dans `pazpop/arcadepipe`** : un secret `TERRAFORM_INFRA_DISPATCH_TOKEN` — un [personal access token *fine-grained*](https://github.com/settings/tokens?type=beta) avec accès à ce repo (`terraform-infra-pazpop-hetzner`) uniquement, permission **Contents: Read and write** (requise par `repository_dispatch`). C'est ce qui permet au CI du jeu de déclencher un déploiement ici sans avoir un accès plus large à ce compte.
+
+Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet *Actions* de ce repo → `Deploy ArcadePipe` → *Run workflow* (utile pour un rollback ou pour retenter après un échec transitoire).
 
 ## Sécurité
 
