@@ -1,0 +1,75 @@
+services:
+  # Proxy en lecture seule vers le socket Docker, joignable uniquement depuis
+  # le réseau interne portal-internal (jamais traefik-public). Monter
+  # /var/run/docker.sock directement dans "generator" (même en :ro) donnerait
+  # un accès root-équivalent à tout l'hôte : un socket n'est pas un fichier
+  # ordinaire, le flag :ro d'un bind mount ne restreint pas les appels à
+  # l'API Docker qui passent au travers. Ce proxy n'autorise que
+  # GET /containers (CONTAINERS=1) — tout le reste (exec, create, mount...)
+  # est refusé par défaut.
+  docker-socket-proxy:
+    # Image publiée sur Docker Hub obsolète (tag "latest" à l'abandon) —
+    # le projet publie ses versions sur GHCR.
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
+    environment:
+      - CONTAINERS=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - portal-internal
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    cpus: 0.1
+
+  # Régénère index.html toutes les 30s à partir des labels pazpop.portal.*
+  # des conteneurs actifs — voir generator/generate.sh. Jamais en contact
+  # direct avec le socket Docker, seulement avec le proxy ci-dessus.
+  generator:
+    build: ./generator
+    volumes:
+      - portal_html:/output
+    networks:
+      - portal-internal
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 32m
+    cpus: 0.1
+
+  web:
+    build: ./web
+    volumes:
+      - portal_html:/usr/share/caddy:ro
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    cpus: 0.25
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.portal.rule=Host(`game.pazpop.net`)"
+      - "traefik.http.routers.portal.entrypoints=websecure"
+      - "traefik.http.routers.portal.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.portal.middlewares=secure-headers@file"
+      - "traefik.http.services.portal.loadbalancer.server.port=80"
+
+networks:
+  portal-internal:
+    name: portal-internal
+  traefik-public:
+    name: traefik-public
+    external: true
+
+volumes:
+  portal_html:

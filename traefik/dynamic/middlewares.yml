@@ -1,0 +1,20 @@
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        customFrameOptionsValue: "SAMEORIGIN"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        # 'unsafe-eval' : requis par lib/libopenmpt.js (arcadepipe), généré
+        # par Emscripten en asm.js (pas du WebAssembly — aucun .wasm séparé),
+        # qui utilise eval() dans son code d'initialisation. 'unsafe-inline'
+        # sur style-src : le portail (portal/generator/generate.sh) génère un
+        # <style> inline dans le <head> de sa page. Vérifié avant application
+        # en relisant les deux sources, pas une valeur par défaut copiée
+        # sans réfléchir.
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+        customResponseHeaders:
+          Permissions-Policy: "camera=(), microphone=(), geolocation=()"
+          Server: ""

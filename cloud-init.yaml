@@ -1,0 +1,21 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+# Reboot systématique en toute dernière étape (après mises à jour + Docker) —
+# garantit un état propre avant de déployer, et applique un éventuel noyau mis
+# à jour par package_upgrade (sans reboot, le nouveau noyau resterait sur
+# disque sans être actif). Docker redémarre seul après coup (systemctl
+# enable, pas juste --now).
+#
+# Le module cloud-init dédié (power_state) a été essayé en premier, mais son
+# garde-fou anti-race-condition interne (vérification qu'un PID de référence
+# n'a pas été recyclé) s'est déclenché à tort sur un provisioning aussi
+# rapide que celui-ci, annulant le reboot silencieusement (cloud-init
+# rapportait quand même "status: done"). Un `reboot` en dernière commande de
+# runcmd n'a pas ce problème : à ce stade, Docker est déjà installé et activé,
+# donc rien d'important n'est interrompu.
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - reboot

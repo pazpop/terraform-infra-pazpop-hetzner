@@ -1,0 +1,10 @@
+# OpenTofu/Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log
+crash.*.log
+
+# Secrets par service (ex: traefik/.env)
+.env
