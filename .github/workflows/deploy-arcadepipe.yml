@@ -27,6 +27,20 @@ jobs:
       # docker-compose.yml (labels Traefik, limites de ressources...) n'est
       # pas embarqué dans les images : sans cette étape, ses changements ne
       # seraient jamais répercutés sur la VPS.
+      #
+      # `fingerprint:` — sans lui, ces actions acceptent silencieusement la
+      # clé d'hôte présentée par DEPLOY_HOST, quelle qu'elle soit (pas de
+      # TOFU-style "first connect", pas d'erreur si elle a changé) : rien
+      # n'empêcherait un MITM sur ce chemin, qui transporte pourtant le
+      # secret SSH complet à chaque commit. Empreinte SHA256 obtenue via
+      # `ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -` et stockée dans le
+      # secret DEPLOY_SSH_FINGERPRINT (pas en clair ici : rien de sensible
+      # dans une empreinte de clé publique, mais aucune raison de la sortir
+      # du même mécanisme de secrets que le reste). Si le VPS est un jour
+      # recréé (nouvelle paire de clés hôte), ce secret doit être régénéré
+      # avec la même commande, sinon ce workflow se met à échouer — c'est le
+      # comportement voulu, pas un bug : mieux vaut un déploiement qui
+      # s'arrête que d'accepter une clé qu'on n'a pas vérifiée.
       - name: Sync docker-compose.yml
         uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1
         with:
@@ -34,6 +48,7 @@ jobs:
           port: 2222
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
           source: docker/arcadepipe/docker-compose.yml
           target: ~/arcadepipe
           strip_components: 2
@@ -45,6 +60,7 @@ jobs:
           port: 2222
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
           # `set -e` : sans ça, un `docker compose pull` en échec (ex: image
           # privée/inaccessible) n'empêche pas `up -d` de s'exécuter quand
           # même — le job rapporte "succès" alors qu'il vient de redémarrer
