@@ -52,6 +52,16 @@ resource "hcloud_primary_ip" "arcadepipe_ipv4" {
   }
 }
 
+// Volontairement PAS de prevent_destroy ici, contrairement à
+// hcloud_primary_ip ci-dessus — c'est l'inverse qu'on veut sur ce serveur :
+// pouvoir le détruire/recréer sans friction (disaster-recovery, changement
+// de cloud-init.yaml qui ne s'applique qu'à la création). Testé en
+// conditions réelles cette session : un destroy/recreate complet du VPS,
+// suivi d'une reconfiguration automatique intégrale via cloud-init (SSH
+// durci, fail2ban, compte deploy) sans aucune intervention manuelle.
+// Mettre prevent_destroy dessus casserait ce mécanisme déjà validé, pour un
+// bénéfice nul : contrairement à l'IP, recréer le serveur ne casse aucun
+// enregistrement DNS externe.
 resource "hcloud_server" "arcadepipe" {
   name         = var.server_name
   server_type  = var.server_type
