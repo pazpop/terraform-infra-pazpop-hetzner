@@ -1,7 +1,23 @@
 variable "hcloud_token" {
-  description = "Token API Hetzner Cloud (console.hetzner.cloud > Security > API Tokens, scope Read & Write)"
+  description = <<-EOT
+    Token API Hetzner Cloud (console.hetzner.cloud > Security > API Tokens,
+    scope Read & Write). Optionnel ici : si non renseigné (default = null),
+    le provider hcloud (provider.tf) retombe automatiquement sur la variable
+    d'environnement HCLOUD_TOKEN, lue nativement par le provider lui-même —
+    aucun changement necessaire dans provider.tf pour ça, un `null` explicite
+    suffit à déclencher ce comportement.
+
+    NE JAMAIS renseigner les deux à la fois (terraform.tfvars ET HCLOUD_TOKEN) :
+    terraform.tfvars prime SILENCIEUSEMENT sur la variable d'environnement dès
+    qu'il contient une valeur non vide. En cas de rotation du token faite
+    seulement via HCLOUD_TOKEN, un ancien token oublié dans terraform.tfvars
+    resterait utilisé sans le moindre avertissement — jusqu'au jour où lui
+    seul expire ou est révoqué, provoquant des 401 déroutants puisque "le
+    token vient d'être changé". Choisir un seul mécanisme et s'y tenir.
+  EOT
   type        = string
   sensitive   = true
+  default     = null
 }
 
 variable "ssh_public_key_path" {

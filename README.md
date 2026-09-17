@@ -51,6 +51,8 @@ tofu apply
 
 `terraform.tfvars` est gitignoré (il contient le token) — ne jamais le committer.
 
+**Alternative** : `hcloud_token` peut rester vide dans `terraform.tfvars` (défaut `null`) et être fourni via la variable d'environnement `HCLOUD_TOKEN` à la place — lue nativement par le provider `hcloud`, testé en réel (`tofu plan` fonctionne avec `terraform.tfvars` absent, tant que `HCLOUD_TOKEN` est exporté). **Ne jamais renseigner les deux en même temps** : `terraform.tfvars` prime silencieusement sur la variable d'environnement, donc une rotation de token faite uniquement via `HCLOUD_TOKEN` laisserait un ancien token oublié dans `terraform.tfvars` toujours utilisé — jusqu'à ce qu'il expire, avec des 401 déroutants à la clé.
+
 Ensuite, depuis la racine du repo, dans l'ordre : `./deploy.sh traefik` (crée le réseau `traefik-public`, voir `docker/traefik/README.md`), puis `./deploy.sh portal` (`docker/portal/README.md`), puis `./deploy.sh arcadepipe` (voir *CI/CD* ci-dessous pour le déploiement automatique) — chaque jeu rejoint `traefik-public` et pose ses labels `pazpop.portal.*` pour apparaître automatiquement sur le portail.
 
 La sortie `ssh_command` (`tofu output ssh_command`, depuis `terraform/`) donne la commande prête à l'emploi.
