@@ -38,7 +38,14 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # `set -e` : sans ça, un `docker compose pull` en échec (ex: image
+          # privée/inaccessible) n'empêche pas `up -d` de s'exécuter quand
+          # même — le job rapporte "succès" alors qu'il vient de redémarrer
+          # les conteneurs sur l'ANCIENNE image en cache local, sans jamais
+          # récupérer la nouvelle. Découvert lors de la toute première
+          # exécution réelle de ce workflow.
           script: |
+            set -e
             cd ~/arcadepipe
             docker compose pull
             docker compose up -d
