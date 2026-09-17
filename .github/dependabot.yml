@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # Actions GitHub, maintenant épinglées par SHA (voir
+  # .github/workflows/deploy-arcadepipe.yml) — Dependabot sait lire un SHA +
+  # commentaire "# vX" et proposer une PR de bump vers le nouveau SHA
+  # correspondant, donc le pin par SHA n'empêche pas les mises à jour, juste
+  # l'exécution silencieuse d'un tag qu'on ne surveille pas soi-même.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

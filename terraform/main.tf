@@ -38,6 +38,18 @@ resource "hcloud_primary_ip" "arcadepipe_ipv4" {
   type        = "ipv4"
   location    = var.location
   auto_delete = false
+
+  // Garde-fou supplémentaire (pas une protection absolue) : bloque un
+  // "tofu destroy"/apply qui supprimerait cette ressource PAR ERREUR DE
+  // CONFIGURATION (ex: un refactor qui la retire du .tf par mégarde) — ça
+  // ne protège pas contre un "tofu destroy" volontaire (ou lancé dans le
+  // mauvais workspace) auquel on répond "yes". La vraie protection reste
+  // de toujours lire un "tofu plan" avant d'appliquer. Seule ressource du
+  // stack avec une conséquence DNS si elle disparaît (voir commentaire
+  // ci-dessus : le A record ne suit jamais le VPS, il suit cette IP).
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "hcloud_server" "arcadepipe" {

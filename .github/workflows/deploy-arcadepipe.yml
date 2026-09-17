@@ -17,13 +17,18 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      # Épinglé par SHA (pas par tag) : un tag comme "v1" peut être redéployé
+      # vers un autre commit sans qu'aucun changement n'apparaisse ici. SHA
+      # vérifié contre refs/tags/v1 de chaque repo avant de l'écrire ici.
+      # Dependabot (.github/dependabot.yml) ouvre une PR à chaque nouvelle
+      # version, donc rien à surveiller à la main malgré le pin.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # docker-compose.yml (labels Traefik, limites de ressources...) n'est
       # pas embarqué dans les images : sans cette étape, ses changements ne
       # seraient jamais répercutés sur la VPS.
       - name: Sync docker-compose.yml
-        uses: appleboy/scp-action@v1
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: 2222
@@ -34,7 +39,7 @@ jobs:
           strip_components: 2
 
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: 2222
