@@ -1,3 +1,5 @@
+![terraform-infra-pazpop-hetzner](assets/banner.svg)
+
 # terraform-infra-pazpop-hetzner
 
 Infra du VPS Hetzner qui héberge [ArcadePipe](https://github.com/pazpop/arcadepipe) (et, à terme, d'autres jeux du même genre). Gérée avec [OpenTofu](https://opentofu.org/) plutôt que Terraform (fork open-source, même langage HCL, aucune dépendance à HashiCorp).
