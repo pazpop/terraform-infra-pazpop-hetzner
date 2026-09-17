@@ -49,6 +49,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
+          debug: true
           source: docker/arcadepipe/docker-compose.yml
           target: ~/arcadepipe
           strip_components: 2
