@@ -17,7 +17,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # docker-compose.yml (labels Traefik, limites de ressources...) n'est
       # pas embarqué dans les images : sans cette étape, ses changements ne
