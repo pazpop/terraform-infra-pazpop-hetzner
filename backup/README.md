@@ -85,6 +85,14 @@ cd ~/arcadepipe && docker compose start backend
 curl -sS https://arcadepipe.pazpop.net/api/health
 ```
 
+## Valider le mécanisme (test de bout en bout)
+
+```bash
+./test-backup-restore.sh
+```
+
+Contre la vraie API en prod (pas de simulation) : insère un score de test unique (nom horodaté) → backup → suppression en direct → restauration → vérifie le retour → nettoie (garanti même en cas d'échec en cours de route, via un `trap` sur la sortie du script). Le fichier de backup produit pendant le test n'est pas supprimé — c'est un backup légitime, la rétention normale (7 jours) s'en charge.
+
 ## Test réel exécuté
 
 Un test complet a été exécuté sur la VPS de production lors de la mise en place de ce mécanisme, à deux reprises (la deuxième fois pour valider le correctif du bug de permissions ci-dessous) : insertion d'un score de test → backup → suppression du score en live → restauration → vérification du retour **et** vérification qu'un nouveau score peut être écrit après restauration → nettoyage. Pas simulé : sur la vraie base, avec un vrai arrêt/redémarrage du conteneur backend.
