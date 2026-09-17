@@ -29,7 +29,8 @@ variable "location" {
 
 variable "ssh_source_cidrs" {
   description = <<-EOT
-    IP autorisées à se connecter en SSH (port 22). Par défaut ouvert à tout
+    IP autorisées à se connecter en SSH (port 2222, voir cloud-init.yaml —
+    sshd n'écoute plus sur le 22 par défaut). Par défaut ouvert à tout
     Internet (0.0.0.0/0, ::/0) — pratique pour démarrer, mais surexposé.
     Pour restreindre à ta seule IP : trouve-la avec `curl -4 icanhazip.com`,
     puis dans terraform.tfvars :
