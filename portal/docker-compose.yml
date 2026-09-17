@@ -61,7 +61,7 @@ services:
       - "traefik.http.routers.portal.rule=Host(`game.pazpop.net`)"
       - "traefik.http.routers.portal.entrypoints=websecure"
       - "traefik.http.routers.portal.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.portal.middlewares=secure-headers@file"
+      - "traefik.http.routers.portal.middlewares=rate-limit@file,secure-headers@file"
       - "traefik.http.services.portal.loadbalancer.server.port=80"
 
 networks:

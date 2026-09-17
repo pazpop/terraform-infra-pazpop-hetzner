@@ -1,5 +1,16 @@
 http:
   middlewares:
+    # Par IP source (comportement par défaut du middleware) : un client
+    # normal ne s'approche jamais de 20 req/s en usage courant (chargement
+    # de page, appels API du jeu), donc plafonner ici gêne uniquement les
+    # scans/bots agressifs et les tentatives de brute-force applicatif —
+    # fail2ban ne protège que SSH, rien côté 80/443 avant ce middleware.
+    rate-limit:
+      rateLimit:
+        average: 20
+        period: 1s
+        burst: 40
+
     secure-headers:
       headers:
         stsSeconds: 31536000

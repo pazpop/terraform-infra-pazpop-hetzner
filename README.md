@@ -79,6 +79,11 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 - Traefik et le portail n'ont jamais d'accès direct à `/var/run/docker.sock` : ils passent par `docker-socket-proxy` (lecture seule, restreint aux endpoints nécessaires) — voir `traefik/README.md` et `portal/README.md`.
 - VPS rebooté systématiquement en fin de provisioning (`cloud-init.yaml`), après mises à jour système, installation de Docker, et durcissement SSH/fail2ban — garantit un noyau à jour et un état propre avant tout déploiement. **Note** : `cloud-init.yaml` documente l'état désiré pour une future recréation du VPS ; il n'est pas ré-exécuté sur le serveur actuel (changer `user_data` forcerait un remplacement destructif du serveur, voir `main.tf`).
 - `Content-Security-Policy` sur le middleware `secure-headers` (`traefik/dynamic/middlewares.yml`), appliquée à tous les jeux/portail routés par Traefik. `'unsafe-eval'` requis pour `lib/libopenmpt.js` (arcadepipe, asm.js généré par Emscripten) ; `'unsafe-inline'` sur `style-src` requis pour le `<style>` inline généré par le portail. Testé en réel (navigateur, sites en direct) : zéro violation, zéro régression.
+- Rate-limiting Traefik (middleware `rate-limit`, `traefik/dynamic/middlewares.yml`) : 20 req/s par IP source (burst 40), appliqué à tous les routeurs — fail2ban ne protège que SSH, rien côté 80/443 sans ce middleware.
+
+## Roadmap
+
+- [ ] Alertes (webhook Discord/Slack) sur les bans fail2ban et les arrêts de service — actuellement aucune notification, il faut vérifier manuellement (`fail2ban-client status sshd`, `docker compose ps`).
 
 ## Choix délibérés
 
