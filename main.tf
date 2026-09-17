@@ -6,10 +6,12 @@ resource "hcloud_ssh_key" "arcadepipe" {
 resource "hcloud_firewall" "arcadepipe" {
   name = "arcadepipe-firewall"
 
+  // sshd n'écoute plus que sur ce port (voir ssh.socket.d/override.conf sur
+  // la VPS) : le 22 par défaut attire énormément de scans automatisés.
   rule {
     direction  = "in"
     protocol   = "tcp"
-    port       = "22"
+    port       = "2222"
     source_ips = var.ssh_source_cidrs
   }
 
