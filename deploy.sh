@@ -28,6 +28,8 @@ SSH_KEY="$HOME/.ssh/arcadepipe_vps"
 SSH_USER="deploy"
 SSH_PORT="2222"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TERRAFORM_DIR="$SCRIPT_DIR/terraform"
+DOCKER_DIR="$SCRIPT_DIR/docker"
 TAR_PATH="/tmp/${STACK}-deploy.tar.gz"
 
 # Exécute la commande normalement, ou l'affiche sans l'exécuter en --dry-run.
@@ -42,7 +44,7 @@ run() {
   fi
 }
 
-HOST="$(cd "$SCRIPT_DIR" && tofu output -raw server_ip)"
+HOST="$(cd "$TERRAFORM_DIR" && tofu output -raw server_ip)"
 
 echo "== Déploiement de '$STACK' sur $HOST $($DRY_RUN && echo '(dry-run — rien ne sera modifié)') =="
 
@@ -51,7 +53,7 @@ echo "== Déploiement de '$STACK' sur $HOST $($DRY_RUN && echo '(dry-run — rie
 # idempotent, sans effet si déjà présent.
 run ssh -n -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" "docker network create traefik-public 2>/dev/null || true"
 
-run tar -czf "$TAR_PATH" -C "$SCRIPT_DIR" "$STACK"
+run tar -czf "$TAR_PATH" -C "$DOCKER_DIR" "$STACK"
 run scp -P "$SSH_PORT" -i "$SSH_KEY" "$TAR_PATH" "$SSH_USER@$HOST:~/${STACK}.tar.gz"
 $DRY_RUN || rm -f "$TAR_PATH"
 
@@ -76,7 +78,7 @@ run ssh -n -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" "tar xzf ~/${STACK}.ta
 BUILT_SERVICES="$(awk '
   /^  [a-zA-Z0-9_-]+:$/ { svc=$1; sub(":$","",svc) }
   /^    build:/ { print svc }
-' "$SCRIPT_DIR/$STACK/docker-compose.yml" | sort -u | tr '\n' ' ')"
+' "$DOCKER_DIR/$STACK/docker-compose.yml" | sort -u | tr '\n' ' ')"
 
 if [ -z "$BUILT_SERVICES" ]; then
   echo "-- Aucune image construite localement dans '$STACK' : snapshot :previous ignoré --"

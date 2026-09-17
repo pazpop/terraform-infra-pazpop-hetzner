@@ -12,24 +12,26 @@ Ce projet est réalisé avec l'aide de [Claude](https://claude.com) (Anthropic) 
 |---|---|---|
 | Cloud provider | [Hetzner Cloud](https://www.hetzner.com/cloud/) (`hcloud`) | VPS `cx23`, IP primaire, firewall |
 | Provisioning initial | cloud-init | Installe Docker au premier boot |
-| Reverse proxy | [Traefik](https://traefik.io/) (`traefik/`) | Point d'entrée public 80/443, TLS auto (Let's Encrypt), routage par labels Docker — mutualisé entre jeux |
-| Portail | Page statique auto-générée (`portal/`) | `game.pazpop.net` liste les jeux déployés (chacun sur son propre sous-domaine, ex: `arcadepipe.pazpop.net`), à partir des labels `pazpop.portal.*` — rien à modifier à la main pour ajouter/retirer un jeu |
-| Jeux | `arcadepipe/` (docker-compose.yml) | Déploiement de [ArcadePipe](https://github.com/pazpop/arcadepipe) (code/CI dans son propre repo public) — ce dossier-ci ne contient que le routage Traefik + les limites de ressources, pas le code du jeu |
-| État Terraform | Local (`terraform.tfstate`, gitignoré) | Un seul opérateur, une seule VPS — pas de backend distant, voir *Choix délibérés* |
+| Reverse proxy | [Traefik](https://traefik.io/) (`docker/traefik/`) | Point d'entrée public 80/443, TLS auto (Let's Encrypt), routage par labels Docker — mutualisé entre jeux |
+| Portail | Page statique auto-générée (`docker/portal/`) | `game.pazpop.net` liste les jeux déployés (chacun sur son propre sous-domaine, ex: `arcadepipe.pazpop.net`), à partir des labels `pazpop.portal.*` — rien à modifier à la main pour ajouter/retirer un jeu |
+| Jeux | `docker/arcadepipe/` (docker-compose.yml) | Déploiement de [ArcadePipe](https://github.com/pazpop/arcadepipe) (code/CI dans son propre repo public) — ce dossier-ci ne contient que le routage Traefik + les limites de ressources, pas le code du jeu |
+| État Terraform | Local (`terraform/terraform.tfstate`, gitignoré) | Un seul opérateur, une seule VPS — pas de backend distant, voir *Choix délibérés* |
 
 ## Fichiers
 
 ```
-terraform.tf     # bloc terraform{} : version, provider requis
-provider.tf      # bloc provider "hcloud"
-variables.tf     # toutes les variables d'entrée
-main.tf          # ressources : clé SSH, firewall, IP, serveur
-outputs.tf       # IP du serveur, commande SSH prête à l'emploi
-cloud-init.yaml  # exécuté au premier boot du VPS (installe Docker)
-deploy.sh        # déploie une stack (traefik, portal ou arcadepipe) sur le VPS — tar/scp/ssh/pull/up
-traefik/         # stack Traefik — se déploie à part, pas via tofu apply (voir traefik/README.md)
-portal/          # page d'accueil auto-générée listant les jeux déployés (voir portal/README.md)
-arcadepipe/      # docker-compose.yml (routage Traefik) pour github.com/pazpop/arcadepipe — voir CI/CD
+terraform/             # tout ce qui est géré par tofu (VPS, firewall, clé SSH, IP)
+├── terraform.tf       # bloc terraform{} : version, provider requis
+├── provider.tf        # bloc provider "hcloud"
+├── variables.tf       # toutes les variables d'entrée
+├── main.tf            # ressources : clé SSH, firewall, IP, serveur
+├── outputs.tf         # IP du serveur, commande SSH prête à l'emploi
+└── cloud-init.yaml    # exécuté au premier boot du VPS (Docker, durcissement SSH, fail2ban)
+docker/                # tout ce qui se déploie en docker-compose, pas via tofu apply
+├── traefik/           # stack Traefik (voir docker/traefik/README.md)
+├── portal/            # page d'accueil auto-générée listant les jeux (voir docker/portal/README.md)
+└── arcadepipe/        # docker-compose.yml (routage Traefik) pour github.com/pazpop/arcadepipe — voir CI/CD
+deploy.sh              # déploie une stack (traefik, portal ou arcadepipe) sur le VPS — tar/scp/ssh/pull/up
 ```
 
 ## Utilisation
@@ -37,6 +39,7 @@ arcadepipe/      # docker-compose.yml (routage Traefik) pour github.com/pazpop/a
 Prérequis : [OpenTofu](https://opentofu.org/docs/intro/install/) installé, un [token API Hetzner](https://console.hetzner.cloud/) (scope Read & Write), une paire de clés SSH dédiée.
 
 ```sh
+cd terraform
 cp terraform.tfvars.example terraform.tfvars   # renseigner hcloud_token + ssh_source_cidrs
 tofu init
 tofu plan
@@ -45,9 +48,9 @@ tofu apply
 
 `terraform.tfvars` est gitignoré (il contient le token) — ne jamais le committer.
 
-Ensuite, sur le VPS, dans l'ordre : `./deploy.sh traefik` (crée le réseau `traefik-public`, voir `traefik/README.md`), puis `./deploy.sh portal` (`portal/README.md`), puis `./deploy.sh arcadepipe` (voir *CI/CD* ci-dessous pour le déploiement automatique) — chaque jeu rejoint `traefik-public` et pose ses labels `pazpop.portal.*` pour apparaître automatiquement sur le portail.
+Ensuite, depuis la racine du repo, dans l'ordre : `./deploy.sh traefik` (crée le réseau `traefik-public`, voir `docker/traefik/README.md`), puis `./deploy.sh portal` (`docker/portal/README.md`), puis `./deploy.sh arcadepipe` (voir *CI/CD* ci-dessous pour le déploiement automatique) — chaque jeu rejoint `traefik-public` et pose ses labels `pazpop.portal.*` pour apparaître automatiquement sur le portail.
 
-La sortie `ssh_command` (`tofu output ssh_command`) donne la commande prête à l'emploi.
+La sortie `ssh_command` (`tofu output ssh_command`, depuis `terraform/`) donne la commande prête à l'emploi.
 
 ## CI/CD — déploiement d'ArcadePipe
 
@@ -56,7 +59,7 @@ Le code et le build d'ArcadePipe vivent dans son propre repo public
 et publie les images sur GHCR à chaque push sur `main`, puis déclenche un
 événement `repository_dispatch` vers **ce repo-ci**, qui reçoit l'événement
 (`.github/workflows/deploy-arcadepipe.yml`) et fait le déploiement SSH réel
-(synchronise `arcadepipe/docker-compose.yml`, `docker compose pull && up -d`
+(synchronise `docker/arcadepipe/docker-compose.yml`, `docker compose pull && up -d`
 sur la VPS). Le code du jeu ne connaît jamais l'IP du VPS ni les détails de
 Traefik ; ce repo-ci ne connaît jamais le code du jeu.
 
@@ -68,7 +71,7 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 
 ## Sécurité
 
-- SSH restreint par IP source (`ssh_source_cidrs`) — ouvert par défaut (`0.0.0.0/0`) tant que non renseigné, voir le commentaire dans `variables.tf` pour se restreindre. Actuellement ouvert à tout Internet pour permettre au déploiement automatique (IP dynamique des runners GitHub) d'atteindre la VPS.
+- SSH restreint par IP source (`ssh_source_cidrs`) — ouvert par défaut (`0.0.0.0/0`) tant que non renseigné, voir le commentaire dans `terraform/variables.tf` pour se restreindre. Actuellement ouvert à tout Internet pour permettre au déploiement automatique (IP dynamique des runners GitHub) d'atteindre la VPS.
 - sshd n'écoute plus sur le port 22 par défaut mais sur **2222** (`ssh -p 2222`, voir `ssh.socket.d/override.conf` sur la VPS) — réduit le bruit des scans automatisés.
 - **Root n'est jamais accessible en SSH** (`PermitRootLogin no`) et l'authentification par mot de passe est désactivée (`PasswordAuthentication no`) — seule la connexion par clé, sur le compte standard `deploy`, fonctionne. `deploy` a un accès `sudo` (NOPASSWD, seul compte du VPS) et fait partie du groupe `docker`.
 - [Fail2ban](https://github.com/fail2ban/fail2ban) actif sur le jail `sshd` (5 tentatives échouées → ban 1h) : la vraie protection contre le brute-force, vu que SSH est ouvert à tout Internet. Jail `recidive` en plus (3 bans en 24h → ban 1 semaine, tous ports) pour les récidivistes qui reviennent après la fin d'un ban.
@@ -76,10 +79,10 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 - Mises à jour de sécurité automatiques (`unattended-upgrades`) avec reboot automatique à 4h du matin si un noyau ou une lib critique a été patché — sinon les patchs s'installent mais restent inappliqués indéfiniment sans redémarrage.
 - Token Hetzner marqué `sensitive` dans Terraform, jamais commité (`.gitignore`).
 - IP primaire détachée du cycle de vie du serveur (`auto_delete = false`) : recréer le VPS ne change jamais l'IP publique, donc jamais besoin de mettre à jour le DNS dans l'urgence.
-- Traefik et le portail n'ont jamais d'accès direct à `/var/run/docker.sock` : ils passent par `docker-socket-proxy` (lecture seule, restreint aux endpoints nécessaires) — voir `traefik/README.md` et `portal/README.md`.
-- VPS rebooté systématiquement en fin de provisioning (`cloud-init.yaml`), après mises à jour système, installation de Docker, et durcissement SSH/fail2ban — garantit un noyau à jour et un état propre avant tout déploiement. **Note** : `cloud-init.yaml` documente l'état désiré pour une future recréation du VPS ; il n'est pas ré-exécuté sur le serveur actuel (changer `user_data` forcerait un remplacement destructif du serveur, voir `main.tf`).
-- `Content-Security-Policy` sur le middleware `secure-headers` (`traefik/dynamic/middlewares.yml`), appliquée à tous les jeux/portail routés par Traefik. `'unsafe-eval'` requis pour `lib/libopenmpt.js` (arcadepipe, asm.js généré par Emscripten) ; `'unsafe-inline'` sur `style-src` requis pour le `<style>` inline généré par le portail. Testé en réel (navigateur, sites en direct) : zéro violation, zéro régression.
-- Rate-limiting Traefik (middleware `rate-limit`, `traefik/dynamic/middlewares.yml`) : 20 req/s par IP source (burst 40), appliqué à tous les routeurs — fail2ban ne protège que SSH, rien côté 80/443 sans ce middleware.
+- Traefik et le portail n'ont jamais d'accès direct à `/var/run/docker.sock` : ils passent par `docker-socket-proxy` (lecture seule, restreint aux endpoints nécessaires) — voir `docker/traefik/README.md` et `docker/portal/README.md`.
+- VPS rebooté systématiquement en fin de provisioning (`terraform/cloud-init.yaml`), après mises à jour système, installation de Docker, et durcissement SSH/fail2ban — garantit un noyau à jour et un état propre avant tout déploiement. **Note** : `cloud-init.yaml` documente l'état désiré pour une future recréation du VPS ; il n'est pas ré-exécuté sur le serveur actuel (changer `user_data` forcerait un remplacement destructif du serveur, voir `terraform/main.tf`).
+- `Content-Security-Policy` sur le middleware `secure-headers` (`docker/traefik/dynamic/middlewares.yml`), appliquée à tous les jeux/portail routés par Traefik. `'unsafe-eval'` requis pour `lib/libopenmpt.js` (arcadepipe, asm.js généré par Emscripten) ; `'unsafe-inline'` sur `style-src` requis pour le `<style>` inline généré par le portail. Testé en réel (navigateur, sites en direct) : zéro violation, zéro régression.
+- Rate-limiting Traefik (middleware `rate-limit`, `docker/traefik/dynamic/middlewares.yml`) : 20 req/s par IP source (burst 40), appliqué à tous les routeurs — fail2ban ne protège que SSH, rien côté 80/443 sans ce middleware.
 - Logs Docker plafonnés (`x-logging`, 10 Mo × 3 fichiers par conteneur, tous les `docker-compose.yml`) — sans ça, le driver par défaut (`json-file`) accumule indéfiniment et peut remplir le disque de la VPS, une panne bien plus bête (et facile à déclencher sans intention malveillante) qu'une vraie attaque.
 
 ## Roadmap

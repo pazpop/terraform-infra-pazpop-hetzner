@@ -29,9 +29,9 @@ jobs:
           port: 2222
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: arcadepipe/docker-compose.yml
+          source: docker/arcadepipe/docker-compose.yml
           target: ~/arcadepipe
-          strip_components: 1
+          strip_components: 2
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
