@@ -1,0 +1,17 @@
+[Unit]
+Description=Backup quotidien de la DB SQLite arcadepipe
+# Le backend doit exister pour que son volume existe — pas une dépendance
+# stricte au conteneur en cours d'exécution (le backup lit le volume
+# directement, pas le conteneur), mais évite un run inutile juste après un
+# reboot avant que la stack ait eu le temps de démarrer.
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# User=deploy (pas root) : deploy fait partie du groupe docker (voir
+# cloud-init.yaml), donc peut lancer `docker run`/`docker build` sans sudo —
+# même principe de moindre privilège que le reste de ce VPS.
+User=deploy
+WorkingDirectory=/home/deploy/backup
+ExecStart=/home/deploy/backup/backup-arcadepipe-db.sh

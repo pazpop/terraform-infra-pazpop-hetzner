@@ -1,0 +1,17 @@
+[Unit]
+Description=Déclenche arcadepipe-backup.service tous les jours à 3h
+
+[Timer]
+# 03h00, pas 04h00 : le reboot automatique post-mise à jour de sécurité
+# (unattended-upgrades, voir terraform/cloud-init.yaml) est programmé à
+# 04h00 — un backup qui tourne pendant un reboot serait interrompu au
+# milieu. 1h d'écart de marge, largement suffisant pour un backup de
+# quelques Mo.
+OnCalendar=*-*-* 03:00:00
+# Rattrape un run manqué si la VPS était éteinte/en reboot pile à l'heure
+# prévue (ex: le redémarrage post-patch de sécurité a débordé sur 03h00 un
+# jour donné) — sans ça, ce jour-là n'aurait simplement aucun backup.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

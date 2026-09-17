@@ -33,6 +33,7 @@ docker/                # tout ce qui se déploie en docker-compose, pas via tofu
 ├── traefik/           # stack Traefik (voir docker/traefik/README.md)
 ├── portal/            # page d'accueil auto-générée listant les jeux (voir docker/portal/README.md)
 └── arcadepipe/        # docker-compose.yml (routage Traefik) pour github.com/pazpop/arcadepipe — voir CI/CD
+backup/                # backup quotidien de la DB SQLite (timer systemd) — voir backup/README.md
 deploy.sh              # déploie une stack (traefik, portal ou arcadepipe) sur le VPS — tar/scp/ssh/pull/up
 ```
 
@@ -130,7 +131,7 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 ## Roadmap
 
 - [ ] Alertes (webhook Discord/Slack) sur les bans fail2ban et les arrêts de service — actuellement aucune notification, il faut vérifier manuellement (`fail2ban-client status sshd`, `docker compose ps`).
-- [ ] Backups (DB arcadepipe, config des stacks) — aucun aujourd'hui ; une recréation du VPS ou une panne disque perd tout. Confirmé en le vivant en direct sur un test de disaster-recovery (VPS de dev, perte de données acceptée).
+- [x] ~~Backups (DB arcadepipe)~~ — fait, voir [`backup/`](backup/README.md) : timer systemd quotidien (3h), rétention 7 quotidiens + 4 hebdomadaires, restauration scriptée et testée en réel. Backup local uniquement pour l'instant (voir *Limites connues* dans `backup/README.md`) ; les fichiers de config des stacks (`docker/`) sont déjà versionnés dans ce repo, pas de sauvegarde séparée nécessaire pour eux.
 - [ ] Scan de vulnérabilités des images Docker (Trivy) dans le CI d'ArcadePipe — les images sont poussées sur GHCR sans jamais vérifier les CVE connues de leurs dépendances/images de base.
 
 ## Choix délibérés
