@@ -32,13 +32,23 @@ jobs:
       # clé d'hôte présentée par DEPLOY_HOST, quelle qu'elle soit (pas de
       # TOFU-style "first connect", pas d'erreur si elle a changé) : rien
       # n'empêcherait un MITM sur ce chemin, qui transporte pourtant le
-      # secret SSH complet à chaque commit. Empreinte SHA256 obtenue via
-      # `ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -` et stockée dans le
-      # secret DEPLOY_SSH_FINGERPRINT (pas en clair ici : rien de sensible
-      # dans une empreinte de clé publique, mais aucune raison de la sortir
-      # du même mécanisme de secrets que le reste). Si le VPS est un jour
-      # recréé (nouvelle paire de clés hôte), ce secret doit être régénéré
-      # avec la même commande, sinon ce workflow se met à échouer — c'est le
+      # secret SSH complet à chaque commit.
+      #
+      # ATTENTION à l'algorithme : ces actions utilisent la bibliothèque SSH
+      # de Go (golang.org/x/crypto/ssh, via appleboy/easyssh-proxy), qui
+      # négocie par défaut une clé d'hôte ECDSA — PAS ED25519 comme le fait
+      # le client OpenSSH par défaut (celui qu'on utilise partout ailleurs
+      # dans ce repo). Trouvé en testant en réel : la même empreinte ED25519
+      # qui fonctionne pour tout le reste (deploy.sh, connexions manuelles)
+      # provoque un "ssh: host key fingerprint mismatch" avec ces actions
+      # précises. Empreinte ECDSA obtenue avec :
+      #   ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -
+      # (garder seulement la ligne "(ECDSA)") — stockée dans le secret
+      # DEPLOY_SSH_FINGERPRINT (pas en clair ici : rien de sensible dans une
+      # empreinte de clé publique, mais aucune raison de la sortir du même
+      # mécanisme de secrets que le reste). Si le VPS est un jour recréé
+      # (nouvelle paire de clés hôte), ce secret doit être régénéré avec la
+      # même commande, sinon ce workflow se met à échouer — c'est le
       # comportement voulu, pas un bug : mieux vaut un déploiement qui
       # s'arrête que d'accepter une clé qu'on n'a pas vérifiée.
       - name: Sync docker-compose.yml
@@ -49,7 +59,6 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
-          debug: true
           source: docker/arcadepipe/docker-compose.yml
           target: ~/arcadepipe
           strip_components: 2

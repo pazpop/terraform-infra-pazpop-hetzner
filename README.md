@@ -102,11 +102,18 @@ deux repos ; aucun code, aucun secret de l'un n'est jamais visible dans l'autre.
 3. **Secrets côté `terraform-infra-pazpop-hetzner`** (ce repo) : `DEPLOY_HOST`,
    `DEPLOY_USER`, `DEPLOY_SSH_KEY` — la connexion SSH vers la VPS, utilisée par
    `deploy-arcadepipe.yml` pour le `scp`/`ssh` réels. Plus `DEPLOY_SSH_FINGERPRINT`
-   (empreinte SHA256 de la clé d'hôte, `ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -`)
-   — sans ça, `scp-action`/`ssh-action` accepteraient silencieusement n'importe
-   quelle clé présentée par `DEPLOY_HOST`, sans protection MITM. **À régénérer
-   si le VPS est recréé** (nouvelle paire de clés hôte) : le workflow échouera
-   sinon, volontairement.
+   (empreinte SHA256 de la clé d'hôte) — sans ça, `scp-action`/`ssh-action`
+   accepteraient silencieusement n'importe quelle clé présentée par
+   `DEPLOY_HOST`, sans protection MITM. **Point non intuitif, trouvé en
+   testant en réel** : ces actions négocient une clé d'hôte **ECDSA** par
+   défaut (bibliothèque SSH de Go), pas ED25519 comme le client OpenSSH
+   utilisé partout ailleurs dans ce repo — prendre la ligne `(ECDSA)`, pas
+   `(ED25519)`, dans la sortie de :
+   ```sh
+   ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -
+   ```
+   **À régénérer si le VPS est recréé** (nouvelle paire de clés hôte) : le
+   workflow échouera sinon, volontairement.
 4. **Secret côté `arcadepipe`** : `TERRAFORM_INFRA_DISPATCH_TOKEN`, un
    [personal access token *fine-grained*](https://github.com/settings/tokens?type=beta)
    scopé **uniquement** à ce repo-ci, permission **Contents: Read and write** (c'est
