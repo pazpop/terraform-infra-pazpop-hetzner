@@ -38,6 +38,14 @@ write_files:
       [sshd]
       enabled = true
       port    = 2222
+
+      [recidive]
+      enabled   = true
+      logpath   = /var/log/fail2ban.log
+      banaction = %(banaction_allports)s
+      bantime   = 1w
+      findtime  = 1d
+      maxretry  = 3
   - path: /etc/apt/apt.conf.d/52reboot-arcadepipe.conf
     content: |
       Unattended-Upgrade::Automatic-Reboot "true";

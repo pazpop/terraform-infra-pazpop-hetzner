@@ -1,3 +1,14 @@
+# Sans limite, le driver par défaut (json-file) accumule les logs
+# indéfiniment sur le disque de la VPS — un service qui boucle sur une
+# erreur peut le remplir en continu, une panne bien plus bête (et bien
+# plus facile à déclencher, même sans intention malveillante) qu'une
+# vraie attaque. 10m x 3 fichiers par conteneur = 30m max.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # Proxy en lecture seule vers le socket Docker, joignable uniquement depuis
   # le réseau interne traefik-internal (jamais traefik-public) — même
@@ -17,6 +28,7 @@ services:
     networks:
       - traefik-internal
     restart: unless-stopped
+    logging: *default-logging
     read_only: true
     tmpfs:
       - /tmp
@@ -49,6 +61,7 @@ services:
       - traefik-public
       - traefik-internal
     restart: unless-stopped
+    logging: *default-logging
     security_opt:
       - no-new-privileges:true
     mem_limit: 128m

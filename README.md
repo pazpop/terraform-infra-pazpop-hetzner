@@ -71,7 +71,7 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 - SSH restreint par IP source (`ssh_source_cidrs`) — ouvert par défaut (`0.0.0.0/0`) tant que non renseigné, voir le commentaire dans `variables.tf` pour se restreindre. Actuellement ouvert à tout Internet pour permettre au déploiement automatique (IP dynamique des runners GitHub) d'atteindre la VPS.
 - sshd n'écoute plus sur le port 22 par défaut mais sur **2222** (`ssh -p 2222`, voir `ssh.socket.d/override.conf` sur la VPS) — réduit le bruit des scans automatisés.
 - **Root n'est jamais accessible en SSH** (`PermitRootLogin no`) et l'authentification par mot de passe est désactivée (`PasswordAuthentication no`) — seule la connexion par clé, sur le compte standard `deploy`, fonctionne. `deploy` a un accès `sudo` (NOPASSWD, seul compte du VPS) et fait partie du groupe `docker`.
-- [Fail2ban](https://github.com/fail2ban/fail2ban) actif sur le jail `sshd` (5 tentatives échouées → ban 1h) : la vraie protection contre le brute-force, vu que SSH est ouvert à tout Internet.
+- [Fail2ban](https://github.com/fail2ban/fail2ban) actif sur le jail `sshd` (5 tentatives échouées → ban 1h) : la vraie protection contre le brute-force, vu que SSH est ouvert à tout Internet. Jail `recidive` en plus (3 bans en 24h → ban 1 semaine, tous ports) pour les récidivistes qui reviennent après la fin d'un ban.
 - Seuls 2222 (SSH), 80 et 443 (HTTP/HTTPS, publics par nature) sont ouverts par le firewall Hetzner.
 - Mises à jour de sécurité automatiques (`unattended-upgrades`) avec reboot automatique à 4h du matin si un noyau ou une lib critique a été patché — sinon les patchs s'installent mais restent inappliqués indéfiniment sans redémarrage.
 - Token Hetzner marqué `sensitive` dans Terraform, jamais commité (`.gitignore`).
@@ -80,10 +80,13 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 - VPS rebooté systématiquement en fin de provisioning (`cloud-init.yaml`), après mises à jour système, installation de Docker, et durcissement SSH/fail2ban — garantit un noyau à jour et un état propre avant tout déploiement. **Note** : `cloud-init.yaml` documente l'état désiré pour une future recréation du VPS ; il n'est pas ré-exécuté sur le serveur actuel (changer `user_data` forcerait un remplacement destructif du serveur, voir `main.tf`).
 - `Content-Security-Policy` sur le middleware `secure-headers` (`traefik/dynamic/middlewares.yml`), appliquée à tous les jeux/portail routés par Traefik. `'unsafe-eval'` requis pour `lib/libopenmpt.js` (arcadepipe, asm.js généré par Emscripten) ; `'unsafe-inline'` sur `style-src` requis pour le `<style>` inline généré par le portail. Testé en réel (navigateur, sites en direct) : zéro violation, zéro régression.
 - Rate-limiting Traefik (middleware `rate-limit`, `traefik/dynamic/middlewares.yml`) : 20 req/s par IP source (burst 40), appliqué à tous les routeurs — fail2ban ne protège que SSH, rien côté 80/443 sans ce middleware.
+- Logs Docker plafonnés (`x-logging`, 10 Mo × 3 fichiers par conteneur, tous les `docker-compose.yml`) — sans ça, le driver par défaut (`json-file`) accumule indéfiniment et peut remplir le disque de la VPS, une panne bien plus bête (et facile à déclencher sans intention malveillante) qu'une vraie attaque.
 
 ## Roadmap
 
 - [ ] Alertes (webhook Discord/Slack) sur les bans fail2ban et les arrêts de service — actuellement aucune notification, il faut vérifier manuellement (`fail2ban-client status sshd`, `docker compose ps`).
+- [ ] Backups (DB arcadepipe, config des stacks) — aucun aujourd'hui ; une recréation du VPS ou une panne disque perd tout. Confirmé en le vivant en direct sur un test de disaster-recovery (VPS de dev, perte de données acceptée).
+- [ ] Scan de vulnérabilités des images Docker (Trivy) dans le CI d'ArcadePipe — les images sont poussées sur GHCR sans jamais vérifier les CVE connues de leurs dépendances/images de base.
 
 ## Choix délibérés
 

@@ -1,3 +1,14 @@
+# Sans limite, le driver par défaut (json-file) accumule les logs
+# indéfiniment sur le disque de la VPS — un service qui boucle sur une
+# erreur peut le remplir en continu, une panne bien plus bête (et bien
+# plus facile à déclencher, même sans intention malveillante) qu'une
+# vraie attaque. 10m x 3 fichiers par conteneur = 30m max.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # Routage géré par Traefik via labels — ni backend ni frontend ne
   # publient de port ; seule Traefik est exposée sur 80/443.
@@ -16,6 +27,7 @@ services:
     networks:
       - traefik-public
     restart: unless-stopped
+    logging: *default-logging
     read_only: true
     tmpfs:
       - /tmp
@@ -40,6 +52,7 @@ services:
     networks:
       - traefik-public
     restart: unless-stopped
+    logging: *default-logging
     read_only: true
     tmpfs:
       # /config,/data : XDG_CONFIG_HOME/XDG_DATA_HOME de Caddy (autosave de
