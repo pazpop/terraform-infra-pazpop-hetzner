@@ -93,4 +93,10 @@ networks:
     external: true
 
 volumes:
+  # Nom explicite : sans ça, Compose préfixe par le nom du projet (le nom du
+  # dossier de déploiement, ~/arcadepipe -> "arcadepipe_backend_data") — un
+  # script de backup qui référence "backend_data" en dur échouerait tel
+  # quel, ou pire, verrait un volume vide fraîchement créé sans backuper
+  # rien du tout. Trouvé en préparant backup/ (voir ce dossier).
   backend_data:
+    name: backend_data
