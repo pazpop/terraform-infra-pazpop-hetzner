@@ -52,7 +52,9 @@ resource "hcloud_server" "arcadepipe" {
     ipv4 = hcloud_primary_ip.arcadepipe_ipv4.id
   }
 
-  user_data = file("${path.module}/cloud-init.yaml")
+  user_data = templatefile("${path.module}/cloud-init.yaml", {
+    ssh_public_key = trimspace(file(pathexpand(var.ssh_public_key_path)))
+  })
 
   // La clé Hetzner n'est injectée qu'au moment de la création du serveur ; la
   // faire tourner (ex: recréée après une suppression accidentelle dans la

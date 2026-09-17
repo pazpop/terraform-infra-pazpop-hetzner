@@ -25,6 +25,7 @@ if [ -z "$STACK" ]; then
 fi
 
 SSH_KEY="$HOME/.ssh/arcadepipe_vps"
+SSH_USER="deploy"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TAR_PATH="/tmp/${STACK}-deploy.tar.gz"
 
@@ -47,13 +48,13 @@ echo "== Déploiement de '$STACK' sur $HOST $($DRY_RUN && echo '(dry-run — rie
 # traefik-public est partagé entre traefik/portal/arcadepipe et n'est créé
 # par aucune des stacks (external: true dans chaque docker-compose.yml) —
 # idempotent, sans effet si déjà présent.
-run ssh -n -i "$SSH_KEY" "root@$HOST" "docker network create traefik-public 2>/dev/null || true"
+run ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "docker network create traefik-public 2>/dev/null || true"
 
 run tar -czf "$TAR_PATH" -C "$SCRIPT_DIR" "$STACK"
-run scp -i "$SSH_KEY" "$TAR_PATH" "root@$HOST:~/${STACK}.tar.gz"
+run scp -i "$SSH_KEY" "$TAR_PATH" "$SSH_USER@$HOST:~/${STACK}.tar.gz"
 $DRY_RUN || rm -f "$TAR_PATH"
 
-run ssh -n -i "$SSH_KEY" "root@$HOST" "tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz"
+run ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz"
 
 # Snapshot des images CONSTRUITES localement par cette stack en :previous,
 # AVANT de reconstruire — permet de revenir en arrière d'une commande
@@ -80,11 +81,11 @@ if [ -z "$BUILT_SERVICES" ]; then
   echo "-- Aucune image construite localement dans '$STACK' : snapshot :previous ignoré --"
 else
   echo "-- Snapshot :previous ($BUILT_SERVICES) --"
-  IMAGES="$(ssh -n -i "$SSH_KEY" "root@$HOST" "cd ~/$STACK && docker compose config --images $BUILT_SERVICES" 2>/dev/null || true)"
+  IMAGES="$(ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "cd ~/$STACK && docker compose config --images $BUILT_SERVICES" 2>/dev/null || true)"
   for img in $IMAGES; do
-    if ssh -n -i "$SSH_KEY" "root@$HOST" "docker image inspect '$img' >/dev/null 2>&1"; then
+    if ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "docker image inspect '$img' >/dev/null 2>&1"; then
       base="${img%:*}"
-      run ssh -n -i "$SSH_KEY" "root@$HOST" "docker tag '$img' '$base:previous'"
+      run ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "docker tag '$img' '$base:previous'"
       echo "snapshot : $img -> $base:previous"
     fi
   done
@@ -96,7 +97,7 @@ fi
 # présente localement sur la VPS, même si une nouvelle version existe sur
 # le registre). Sans effet néfaste pour traefik/portal (pull ne fait rien
 # de plus pour un service qui a déjà "build:").
-run ssh -n -i "$SSH_KEY" "root@$HOST" "cd ~/$STACK && docker compose pull && docker compose up -d --build"
+run ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "cd ~/$STACK && docker compose pull && docker compose up -d --build"
 
 # Ne garder que le running (:latest) et le snapshot (:previous) — nettoie
 # les générations plus anciennes, devenues orphelines (sans tag) dès que le
@@ -105,7 +106,7 @@ run ssh -n -i "$SSH_KEY" "root@$HOST" "cd ~/$STACK && docker compose pull && doc
 # ":previous" tant qu'ils restent tagués, jamais une image utilisée par un
 # conteneur en cours.
 echo "-- Nettoyage des images orphelines --"
-run ssh -n -i "$SSH_KEY" "root@$HOST" "docker image prune -f"
+run ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "docker image prune -f"
 
 if $DRY_RUN; then
   echo
@@ -119,13 +120,13 @@ fi
 # start_period de healthcheck. 30s max, revérifié toutes les 2s.
 ATTENTE=0
 while [ "$ATTENTE" -lt 30 ]; do
-  PAS_PRET="$(ssh -n -i "$SSH_KEY" "root@$HOST" "cd ~/$STACK && docker compose ps --format '{{.Status}}'" 2>/dev/null | grep -iE 'starting|unhealthy' || true)"
+  PAS_PRET="$(ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "cd ~/$STACK && docker compose ps --format '{{.Status}}'" 2>/dev/null | grep -iE 'starting|unhealthy' || true)"
   [ -z "$PAS_PRET" ] && break
   sleep 2
   ATTENTE=$((ATTENTE + 2))
 done
 
-STATUT="$(ssh -n -i "$SSH_KEY" "root@$HOST" "cd ~/$STACK && docker compose ps --format 'table {{.Name}}\t{{.Status}}'")"
+STATUT="$(ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "cd ~/$STACK && docker compose ps --format 'table {{.Name}}\t{{.Status}}'")"
 
 # Le statut Docker (déjà attendu ci-dessus) est le signal fiable — PAS_PRET
 # non vide ici veut dire que le délai de 30s a été atteint sans que tout
@@ -140,7 +141,7 @@ ECHEC=false
 
 case "$STACK" in
   traefik)
-    ERREURS="$(ssh -n -i "$SSH_KEY" "root@$HOST" "docker logs traefik-traefik-1 --tail 10 2>&1")"
+    ERREURS="$(ssh -n -i "$SSH_KEY" "$SSH_USER@$HOST" "docker logs traefik-traefik-1 --tail 10 2>&1")"
     ;;
   portal)
     CODE_GAME="$(curl -sS -o /dev/null -w '%{http_code}' "https://game.pazpop.net/" || echo '???')"

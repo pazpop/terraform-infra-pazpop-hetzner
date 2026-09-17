@@ -70,12 +70,14 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 
 - SSH restreint par IP source (`ssh_source_cidrs`) — ouvert par défaut (`0.0.0.0/0`) tant que non renseigné, voir le commentaire dans `variables.tf` pour se restreindre. Actuellement ouvert à tout Internet pour permettre au déploiement automatique (IP dynamique des runners GitHub) d'atteindre la VPS.
 - sshd n'écoute plus sur le port 22 par défaut mais sur **2222** (`ssh -p 2222`, voir `ssh.socket.d/override.conf` sur la VPS) — réduit le bruit des scans automatisés.
+- **Root n'est jamais accessible en SSH** (`PermitRootLogin no`) et l'authentification par mot de passe est désactivée (`PasswordAuthentication no`) — seule la connexion par clé, sur le compte standard `deploy`, fonctionne. `deploy` a un accès `sudo` (NOPASSWD, seul compte du VPS) et fait partie du groupe `docker`.
 - [Fail2ban](https://github.com/fail2ban/fail2ban) actif sur le jail `sshd` (5 tentatives échouées → ban 1h) : la vraie protection contre le brute-force, vu que SSH est ouvert à tout Internet.
 - Seuls 2222 (SSH), 80 et 443 (HTTP/HTTPS, publics par nature) sont ouverts par le firewall Hetzner.
+- Mises à jour de sécurité automatiques (`unattended-upgrades`) avec reboot automatique à 4h du matin si un noyau ou une lib critique a été patché — sinon les patchs s'installent mais restent inappliqués indéfiniment sans redémarrage.
 - Token Hetzner marqué `sensitive` dans Terraform, jamais commité (`.gitignore`).
 - IP primaire détachée du cycle de vie du serveur (`auto_delete = false`) : recréer le VPS ne change jamais l'IP publique, donc jamais besoin de mettre à jour le DNS dans l'urgence.
 - Traefik et le portail n'ont jamais d'accès direct à `/var/run/docker.sock` : ils passent par `docker-socket-proxy` (lecture seule, restreint aux endpoints nécessaires) — voir `traefik/README.md` et `portal/README.md`.
-- VPS rebooté systématiquement en fin de provisioning (`cloud-init.yaml`), après mises à jour système et installation de Docker — garantit un noyau à jour et un état propre avant tout déploiement.
+- VPS rebooté systématiquement en fin de provisioning (`cloud-init.yaml`), après mises à jour système, installation de Docker, et durcissement SSH/fail2ban — garantit un noyau à jour et un état propre avant tout déploiement. **Note** : `cloud-init.yaml` documente l'état désiré pour une future recréation du VPS ; il n'est pas ré-exécuté sur le serveur actuel (changer `user_data` forcerait un remplacement destructif du serveur, voir `main.tf`).
 - `Content-Security-Policy` sur le middleware `secure-headers` (`traefik/dynamic/middlewares.yml`), appliquée à tous les jeux/portail routés par Traefik. `'unsafe-eval'` requis pour `lib/libopenmpt.js` (arcadepipe, asm.js généré par Emscripten) ; `'unsafe-inline'` sur `style-src` requis pour le `<style>` inline généré par le portail. Testé en réel (navigateur, sites en direct) : zéro violation, zéro régression.
 
 ## Choix délibérés

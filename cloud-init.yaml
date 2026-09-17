@@ -2,20 +2,66 @@
 package_update: true
 package_upgrade: true
 
+# Compte standard pour toute connexion SSH — root n'est jamais accessible en
+# SSH (voir sshd_config.d/99-hardening.conf ci-dessous). NOPASSWD car c'est le
+# seul compte de ce VPS, protégé uniquement par la clé SSH (pas de mot de
+# passe défini pour cet utilisateur de toute façon).
+users:
+  - default
+  - name: deploy
+    groups: sudo
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+ssh_pwauth: false
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-hardening.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+  - path: /etc/systemd/system/ssh.socket.d/override.conf
+    content: |
+      [Socket]
+      ListenStream=
+      ListenStream=0.0.0.0:2222
+      ListenStream=[::]:2222
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime  = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      port    = 2222
+  - path: /etc/apt/apt.conf.d/52reboot-arcadepipe.conf
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
 # Reboot systématique en toute dernière étape (après mises à jour + Docker) —
 # garantit un état propre avant de déployer, et applique un éventuel noyau mis
 # à jour par package_upgrade (sans reboot, le nouveau noyau resterait sur
 # disque sans être actif). Docker redémarre seul après coup (systemctl
-# enable, pas juste --now).
+# enable, pas juste --now), tout comme sshd et fail2ban.
 #
 # Le module cloud-init dédié (power_state) a été essayé en premier, mais son
 # garde-fou anti-race-condition interne (vérification qu'un PID de référence
 # n'a pas été recyclé) s'est déclenché à tort sur un provisioning aussi
 # rapide que celui-ci, annulant le reboot silencieusement (cloud-init
 # rapportait quand même "status: done"). Un `reboot` en dernière commande de
-# runcmd n'a pas ce problème : à ce stade, Docker est déjà installé et activé,
-# donc rien d'important n'est interrompu.
+# runcmd n'a pas ce problème : à ce stade, tout ce qui précède est déjà
+# appliqué, donc rien d'important n'est interrompu.
 runcmd:
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker
+  - usermod -aG docker deploy
+  - apt-get install -y fail2ban
+  - systemctl enable --now fail2ban
+  - systemctl daemon-reload
+  - systemctl restart ssh.socket
   - reboot
