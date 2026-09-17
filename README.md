@@ -56,18 +56,57 @@ La sortie `ssh_command` (`tofu output ssh_command`, depuis `terraform/`) donne l
 
 ## CI/CD — déploiement d'ArcadePipe
 
-Le code et le build d'ArcadePipe vivent dans son propre repo public
-([`pazpop/arcadepipe`](https://github.com/pazpop/arcadepipe)) : son CI build
-et publie les images sur GHCR à chaque push sur `main`, puis déclenche un
-événement `repository_dispatch` vers **ce repo-ci**, qui reçoit l'événement
-(`.github/workflows/deploy-arcadepipe.yml`) et fait le déploiement SSH réel
-(synchronise `docker/arcadepipe/docker-compose.yml`, `docker compose pull && up -d`
-sur la VPS). Le code du jeu ne connaît jamais l'IP du VPS ni les détails de
-Traefik ; ce repo-ci ne connaît jamais le code du jeu.
+Le code et le build d'ArcadePipe vivent dans leur propre repo public
+([`pazpop/arcadepipe`](https://github.com/pazpop/arcadepipe)), volontairement séparé de
+celui-ci (voir *Choix délibérés*) : ce repo-là ne connaît jamais l'IP du VPS ni les
+détails de Traefik, et ce repo-ci ne connaît jamais le code du jeu. Les deux CI se
+parlent via un seul événement GitHub (`repository_dispatch`), déclenché une fois les
+images publiées.
 
-Secrets à configurer :
-- **Dans `pazpop/terraform-infra-pazpop-hetzner`** (ce repo) : `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` — la connexion SSH vers la VPS, utilisée par `deploy-arcadepipe.yml`.
-- **Dans `pazpop/arcadepipe`** : un secret `TERRAFORM_INFRA_DISPATCH_TOKEN` — un [personal access token *fine-grained*](https://github.com/settings/tokens?type=beta) avec accès à ce repo (`terraform-infra-pazpop-hetzner`) uniquement, permission **Contents: Read and write** (requise par `repository_dispatch`). C'est ce qui permet au CI du jeu de déclencher un déploiement ici sans avoir un accès plus large à ce compte.
+### Comment ça se parle
+
+```mermaid
+sequenceDiagram
+    participant Dev as Développeur·euse
+    participant AP as CI arcadepipe<br/>(deploy.yml)
+    participant GHCR
+    participant TI as CI terraform-infra<br/>(deploy-arcadepipe.yml)
+    participant VPS
+
+    Dev->>AP: git push main
+    AP->>AP: lint (ruff)
+    AP->>GHCR: build + push images<br/>(:latest, :sha)
+    AP->>TI: repository_dispatch<br/>event "arcadepipe-published"
+    TI->>VPS: scp docker/arcadepipe/docker-compose.yml
+    TI->>VPS: ssh — docker compose pull && up -d
+    VPS-->>TI: conteneurs à jour (healthcheck)
+```
+
+Le déclenchement `repository_dispatch` est un `POST` vers l'API GitHub
+(`repos/pazpop/terraform-infra-pazpop-hetzner/dispatches`) fait par
+[`peter-evans/repository-dispatch`](https://github.com/peter-evans/repository-dispatch)
+depuis le CI d'arcadepipe — c'est la seule chose qui traverse la frontière entre les
+deux repos ; aucun code, aucun secret de l'un n'est jamais visible dans l'autre.
+
+### Comment c'est mis en place
+
+1. **Le workflow receveur** (`.github/workflows/deploy-arcadepipe.yml`, ce repo)
+   écoute deux déclencheurs : `repository_dispatch: types: [arcadepipe-published]`
+   (automatique) et `workflow_dispatch` (manuel, pour rejouer un déploiement sans
+   rien pousser).
+2. **Le workflow émetteur** (`.github/workflows/deploy.yml`, dans `arcadepipe`) build,
+   push sur GHCR, puis notifie avec `peter-evans/repository-dispatch`, protégé par
+   `if: github.repository == 'pazpop/arcadepipe'` — un fork communautaire build ses
+   propres images sans jamais tenter (et échouer) ce déclenchement.
+3. **Secrets côté `terraform-infra-pazpop-hetzner`** (ce repo) : `DEPLOY_HOST`,
+   `DEPLOY_USER`, `DEPLOY_SSH_KEY` — la connexion SSH vers la VPS, utilisée par
+   `deploy-arcadepipe.yml` pour le `scp`/`ssh` réels.
+4. **Secret côté `arcadepipe`** : `TERRAFORM_INFRA_DISPATCH_TOKEN`, un
+   [personal access token *fine-grained*](https://github.com/settings/tokens?type=beta)
+   scopé **uniquement** à ce repo-ci, permission **Contents: Read and write** (c'est
+   le niveau minimal qu'exige l'API `dispatches`). Un token classique (accès à tous
+   les repos du compte) aurait fonctionné aussi, mais aurait donné au CI du jeu bien
+   plus d'accès que nécessaire pour une seule notification.
 
 Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet *Actions* de ce repo → `Deploy ArcadePipe` → *Run workflow* (utile pour un rollback ou pour retenter après un échec transitoire).
 
