@@ -147,6 +147,8 @@ Redéploiement manuel possible à tout moment sans rien pousser, depuis l'onglet
 
 - [ ] Alertes (webhook Discord/Slack) sur les bans fail2ban et les arrêts de service — actuellement aucune notification, il faut vérifier manuellement (`fail2ban-client status sshd`, `docker compose ps`).
 - [x] ~~Backups (DB arcadepipe)~~ — fait, voir [`backup/`](backup/README.md) : timer systemd quotidien (3h), rétention 7 quotidiens + 4 hebdomadaires, restauration scriptée et testée en réel. Backup local uniquement pour l'instant (voir *Limites connues* dans `backup/README.md`) ; les fichiers de config des stacks (`docker/`) sont déjà versionnés dans ce repo, pas de sauvegarde séparée nécessaire pour eux.
+- [ ] **Durcir la CSP** (`docker/traefik/dynamic/middlewares.yml`) : remplacer `'unsafe-eval'` par `'wasm-unsafe-eval'`, plus étroit, maintenant qu'on sait que le lecteur de musique d'arcadepipe est en WebAssembly. Pas urgent. **À tester avant d'appliquer** : vérifier que la musique démarre encore (navigateurs Chromium *et* Firefox) avec la nouvelle CSP, car l'AudioWorklet hérite de la CSP de la page.
+- [ ] **Backups : copie distante + alerte en cas d'échec.** Aujourd'hui uniquement local (une panne disque de la VPS emporte base et sauvegardes) et aucune notification si le timer échoue — voir *Limites connues* dans [`backup/README.md`](backup/README.md) et l'item « Alertes » ci-dessus. Le point d'extension est déjà prévu dans `backup-arcadepipe-db.sh` (variable `BACKUP_DEST`, étape `rclone` en fin de script). Pas urgent, à faire un peu plus tard.
 - [ ] Scan de vulnérabilités des images Docker (Trivy) dans le CI d'ArcadePipe — les images sont poussées sur GHCR sans jamais vérifier les CVE connues de leurs dépendances/images de base.
 
 ## Choix délibérés
