@@ -1,8 +1,5 @@
-# Sans limite, le driver par défaut (json-file) accumule les logs
-# indéfiniment sur le disque de la VPS — un service qui boucle sur une
-# erreur peut le remplir en continu, une panne bien plus bête (et bien
-# plus facile à déclencher, même sans intention malveillante) qu'une
-# vraie attaque. 10m x 3 fichiers par conteneur = 30m max.
+# Logs Docker plafonnés (10 Mo x 3 par conteneur) : le driver par défaut accumule à l'infini
+# et peut remplir le disque de la VPS.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -10,14 +7,9 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  # Proxy en lecture seule vers le socket Docker, joignable uniquement depuis
-  # le réseau interne portal-internal (jamais traefik-public). Monter
-  # /var/run/docker.sock directement dans "generator" (même en :ro) donnerait
-  # un accès root-équivalent à tout l'hôte : un socket n'est pas un fichier
-  # ordinaire, le flag :ro d'un bind mount ne restreint pas les appels à
-  # l'API Docker qui passent au travers. Ce proxy n'autorise que
-  # GET /containers (CONTAINERS=1) — tout le reste (exec, create, mount...)
-  # est refusé par défaut.
+  # Proxy en lecture seule vers le socket Docker (réseau interne portal-internal
+  # uniquement). Monter docker.sock dans "generator", même en :ro, donnerait un accès
+  # root à l'hôte : :ro ne restreint pas les appels à l'API. Seul GET /containers est autorisé.
   docker-socket-proxy:
     # Image publiée sur Docker Hub obsolète (tag "latest" à l'abandon) —
     # le projet publie ses versions sur GHCR.

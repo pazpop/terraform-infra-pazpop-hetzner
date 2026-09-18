@@ -1,11 +1,8 @@
 name: Deploy ArcadePipe
 
-# Déclenché automatiquement par le CI du repo applicatif (github.com/pazpop/
-# arcadepipe, public) une fois une nouvelle image poussée sur GHCR — voir
-# .github/workflows/deploy.yml dans ce repo-là, étape "Notifier
-# terraform-infra-pazpop-hetzner". `workflow_dispatch` permet aussi de
-# redéployer manuellement depuis l'onglet Actions sans rien avoir à pousser
-# (utile pour un rollback ou pour retenter après un échec).
+# Déclenché par le CI d'arcadepipe (repo public) une fois l'image poussée sur GHCR
+# (étape « Notifier terraform-infra-pazpop-hetzner » de son deploy.yml).
+# `workflow_dispatch` : redéploiement manuel depuis l'onglet Actions (rollback, nouvel essai).
 on:
   repository_dispatch:
     types: [arcadepipe-published]
@@ -17,40 +14,18 @@ jobs:
     permissions:
       contents: read
     steps:
-      # Épinglé par SHA (pas par tag) : un tag comme "v1" peut être redéployé
-      # vers un autre commit sans qu'aucun changement n'apparaisse ici. SHA
-      # vérifié contre refs/tags/v1 de chaque repo avant de l'écrire ici.
-      # Dependabot (.github/dependabot.yml) ouvre une PR à chaque nouvelle
-      # version, donc rien à surveiller à la main malgré le pin.
+      # Épinglé par SHA (un tag comme "v1" peut être déplacé) ; Dependabot ouvre les PR de mise à jour.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # docker-compose.yml (labels Traefik, limites de ressources...) n'est
-      # pas embarqué dans les images : sans cette étape, ses changements ne
-      # seraient jamais répercutés sur la VPS.
+      # docker-compose.yml n'est pas dans les images : sans cette étape, ses changements
+      # n'atteindraient jamais la VPS.
       #
-      # `fingerprint:` — sans lui, ces actions acceptent silencieusement la
-      # clé d'hôte présentée par DEPLOY_HOST, quelle qu'elle soit (pas de
-      # TOFU-style "first connect", pas d'erreur si elle a changé) : rien
-      # n'empêcherait un MITM sur ce chemin, qui transporte pourtant le
-      # secret SSH complet à chaque commit.
-      #
-      # ATTENTION à l'algorithme : ces actions utilisent la bibliothèque SSH
-      # de Go (golang.org/x/crypto/ssh, via appleboy/easyssh-proxy), qui
-      # négocie par défaut une clé d'hôte ECDSA — PAS ED25519 comme le fait
-      # le client OpenSSH par défaut (celui qu'on utilise partout ailleurs
-      # dans ce repo). Trouvé en testant en réel : la même empreinte ED25519
-      # qui fonctionne pour tout le reste (deploy.sh, connexions manuelles)
-      # provoque un "ssh: host key fingerprint mismatch" avec ces actions
-      # précises. Empreinte ECDSA obtenue avec :
+      # `fingerprint:` : sans lui, ces actions acceptent n'importe quelle clé d'hôte (pas
+      # de protection MITM). Ces actions négocient une clé ECDSA (bibliothèque SSH de Go),
+      # pas ED25519 comme OpenSSH : prendre la ligne "(ECDSA)" de
       #   ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -
-      # (garder seulement la ligne "(ECDSA)") — stockée dans le secret
-      # DEPLOY_SSH_FINGERPRINT (pas en clair ici : rien de sensible dans une
-      # empreinte de clé publique, mais aucune raison de la sortir du même
-      # mécanisme de secrets que le reste). Si le VPS est un jour recréé
-      # (nouvelle paire de clés hôte), ce secret doit être régénéré avec la
-      # même commande, sinon ce workflow se met à échouer — c'est le
-      # comportement voulu, pas un bug : mieux vaut un déploiement qui
-      # s'arrête que d'accepter une clé qu'on n'a pas vérifiée.
+      # et la mettre dans le secret DEPLOY_SSH_FINGERPRINT. À régénérer si le VPS est
+      # recréé : le workflow échoue sinon, volontairement.
       - name: Sync docker-compose.yml
         uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1
         with:
@@ -71,12 +46,8 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
-          # `set -e` : sans ça, un `docker compose pull` en échec (ex: image
-          # privée/inaccessible) n'empêche pas `up -d` de s'exécuter quand
-          # même — le job rapporte "succès" alors qu'il vient de redémarrer
-          # les conteneurs sur l'ANCIENNE image en cache local, sans jamais
-          # récupérer la nouvelle. Découvert lors de la toute première
-          # exécution réelle de ce workflow.
+          # `set -e` : sans lui, un `pull` en échec n'empêche pas `up -d`, et le job
+          # rapporte « succès » en relançant l'ANCIENNE image en cache.
           script: |
             set -e
             cd ~/arcadepipe

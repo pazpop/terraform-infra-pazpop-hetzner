@@ -1,8 +1,5 @@
-# Sans limite, le driver par défaut (json-file) accumule les logs
-# indéfiniment sur le disque de la VPS — un service qui boucle sur une
-# erreur peut le remplir en continu, une panne bien plus bête (et bien
-# plus facile à déclencher, même sans intention malveillante) qu'une
-# vraie attaque. 10m x 3 fichiers par conteneur = 30m max.
+# Logs Docker plafonnés (10 Mo x 3 par conteneur) : le driver par défaut accumule à l'infini
+# et peut remplir le disque de la VPS.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -10,14 +7,9 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
-  # Proxy en lecture seule vers le socket Docker, joignable uniquement depuis
-  # le réseau interne traefik-internal (jamais traefik-public) — même
-  # raisonnement que portal/docker-compose.yml : monter docker.sock
-  # directement (même en :ro) donne un accès root-équivalent à l'hôte, le
-  # flag :ro d'un bind mount ne restreint pas les appels à l'API Docker qui
-  # passent au travers. N'autorise que la lecture des conteneurs/réseaux
-  # (CONTAINERS=1, NETWORKS=1) — tout le reste (exec, create, mount...) est
-  # refusé par défaut.
+  # Proxy en lecture seule vers le socket Docker (réseau interne traefik-internal
+  # uniquement). Monter docker.sock, même en :ro, donnerait un accès root à l'hôte :
+  # :ro ne restreint pas les appels à l'API. Seuls CONTAINERS=1 et NETWORKS=1 sont autorisés.
   docker-socket-proxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
     environment:

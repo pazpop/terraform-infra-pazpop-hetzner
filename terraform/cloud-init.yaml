@@ -51,19 +51,10 @@ write_files:
       Unattended-Upgrade::Automatic-Reboot "true";
       Unattended-Upgrade::Automatic-Reboot-Time "04:00";
 
-# Reboot systématique en toute dernière étape (après mises à jour + Docker) —
-# garantit un état propre avant de déployer, et applique un éventuel noyau mis
-# à jour par package_upgrade (sans reboot, le nouveau noyau resterait sur
-# disque sans être actif). Docker redémarre seul après coup (systemctl
-# enable, pas juste --now), tout comme sshd et fail2ban.
-#
-# Le module cloud-init dédié (power_state) a été essayé en premier, mais son
-# garde-fou anti-race-condition interne (vérification qu'un PID de référence
-# n'a pas été recyclé) s'est déclenché à tort sur un provisioning aussi
-# rapide que celui-ci, annulant le reboot silencieusement (cloud-init
-# rapportait quand même "status: done"). Un `reboot` en dernière commande de
-# runcmd n'a pas ce problème : à ce stade, tout ce qui précède est déjà
-# appliqué, donc rien d'important n'est interrompu.
+# Reboot en dernière étape : applique un éventuel nouveau noyau et garantit un état propre
+# avant tout déploiement (Docker, sshd et fail2ban redémarrent seuls).
+# Pas le module cloud-init `power_state` : son garde-fou interne s'est déclenché à tort
+# et a annulé le reboot en silence. Un `reboot` en fin de runcmd n'a pas ce défaut.
 runcmd:
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker

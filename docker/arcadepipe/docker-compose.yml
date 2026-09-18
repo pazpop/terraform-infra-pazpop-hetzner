@@ -1,8 +1,5 @@
-# Sans limite, le driver par défaut (json-file) accumule les logs
-# indéfiniment sur le disque de la VPS — un service qui boucle sur une
-# erreur peut le remplir en continu, une panne bien plus bête (et bien
-# plus facile à déclencher, même sans intention malveillante) qu'une
-# vraie attaque. 10m x 3 fichiers par conteneur = 30m max.
+# Logs Docker plafonnés (10 Mo x 3 par conteneur) : le driver par défaut accumule à l'infini
+# et peut remplir le disque de la VPS.
 x-logging: &default-logging
   driver: json-file
   options:
@@ -79,28 +76,12 @@ services:
       - "traefik.http.routers.arcadepipe-web.entrypoints=websecure"
       - "traefik.http.routers.arcadepipe-web.tls.certresolver=letsencrypt"
       - "traefik.http.routers.arcadepipe-web.priority=1"
-      # DÉSACTIVÉ VOLONTAIREMENT : rate-limit@file retiré de ce routeur le
-      # 2026-09-17 (contrairement à arcadepipe-api ci-dessus, qui le garde).
-      #
-      # Pourquoi : ce routeur sert des fichiers statiques (JS vanilla sans
-      # bundler — une quarantaine de fichiers JS + CSS/HTML chargés
-      # séparément par page, en plus de la musique) plutôt qu'une API qui écrit en base. Un simple
-      # second onglet ouvert en même temps, ou une IP partagée (réseau
-      # familial, NAT mobile), suffisait à dépasser le burst (40) du
-      # middleware sans rien d'anormal — provoquait des 429 sur les fichiers
-      # .xm côté jeu, silence audio permanent (voir GAMEPLAY.md du repo
-      # arcadepipe, "Retour d'expérience", 3e round, et son CHANGELOG.md
-      # v2.53). Servir un fichier statique est bon marché ; limiter par IP
-      # ici protégeait contre un risque quasi nul au prix de casser un usage
-      # légitime courant.
-      #
-      # Si on doit un jour le réactiver (signe d'abus réel constaté, pas par
-      # défaut/prudence) : NE PAS remettre rate-limit@file tel quel, il
-      # redéclenchera le même problème. Créer plutôt un middleware dédié aux
-      # fichiers statiques avec un burst nettement plus large (au moins
-      # 80-100, pour couvrir une quarantaine de requêtes × 2-3
-      # onglets/clients simultanés sur la même IP) dans middlewares.yml, et le tester en
-      # rechargeant la page plusieurs fois de suite avant de déployer.
+      # rate-limit@file volontairement absent (retiré le 2026-09-17, contrairement à
+      # arcadepipe-api) : ce routeur sert une quarantaine de fichiers statiques par page ;
+      # un second onglet ou une IP partagée dépassait le burst (40), d'où des 429 sur les
+      # .xm et une musique muette (repo arcadepipe, docs/audio-saga.md, round 3).
+      # Pour le réactiver : un middleware dédié aux statiques, burst >= 100, testé en
+      # rechargeant la page plusieurs fois — jamais rate-limit@file tel quel.
       - "traefik.http.routers.arcadepipe-web.middlewares=secure-headers@file"
       - "traefik.http.services.arcadepipe-web.loadbalancer.server.port=80"
       # Lu par le générateur du portail (voir portal/) — sans rapport avec

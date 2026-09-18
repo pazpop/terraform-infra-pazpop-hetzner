@@ -1,29 +1,21 @@
 #!/usr/bin/env bash
-# Test de bout en bout du mécanisme de backup/restauration, contre la VRAIE
-# API en prod (pas de simulation) : insère un score de test -> backup ->
-# suppression en direct -> restauration -> vérifie le retour -> nettoie.
-# Reproduit scripté le test manuel fait lors de la mise en place de
-# backup/ (voir backup/README.md, section "Test réel exécuté").
+# Test de bout en bout du backup/restauration contre la VRAIE API en prod :
+# insère un score de test, backup, suppression, restauration, vérifie le retour,
+# nettoie (voir backup/README.md, « Test réel exécuté »).
 #
 # Usage : ./test-backup-restore.sh
 set -euo pipefail
 
 API_BASE="https://arcadepipe.pazpop.net"
-SSH_HOST="arcadepipe-vps"   # alias défini dans ~/.ssh/config (voir main README)
+SSH_HOST="arcadepipe-vps"   # alias défini dans ~/.ssh/config
 REMOTE_BACKUP_SCRIPT="~/backup/backup-arcadepipe-db.sh"
 REMOTE_RESTORE_SCRIPT="~/backup/restore-arcadepipe-db.sh"
 
-# Nom unique par run (timestamp) : évite toute confusion avec un test
-# précédent resté en place suite à un échec, et rend le nettoyage sans
-# ambiguïté (on ne supprime QUE ce nom précis, jamais "tout ce qui ressemble
-# à un test").
+# Nom unique par run : le nettoyage ne supprime que ce nom précis.
 TEST_PLAYER="E2ETEST_$(date +%s)"
 
-# Supprime le score de test sur la VRAIE base (pas le backup) — utilisé à la
-# fois pour l'étape 3 (simuler une perte de données) et pour le nettoyage
-# final. Passe par `docker exec` + le module sqlite3 de Python : l'image
-# durcie du backend n'a pas le binaire sqlite3 (voir backend/Dockerfile),
-# mais elle a Python, qui l'a en bibliothèque standard.
+# Supprime le score de test sur la VRAIE base (étape 3 et nettoyage). Via Python :
+# l'image du backend n'a pas le binaire sqlite3.
 delete_test_score() {
   ssh "$SSH_HOST" "docker exec arcadepipe-backend-1 python3 -c \"
 import sqlite3
@@ -34,10 +26,7 @@ conn.close()
 \"" >/dev/null
 }
 
-# Nettoyage garanti même si le test échoue en cours de route (trap sur EXIT,
-# pas seulement en fin de script normale) — un test de backup qui laisse des
-# scores fictifs dans le vrai classement en cas d'échec serait pire que pas
-# de test du tout.
+# Nettoyage garanti même en cas d'échec (trap sur EXIT) : pas de faux scores dans le vrai classement.
 cleanup() {
   echo "[test] Nettoyage : suppression de ${TEST_PLAYER}..."
   delete_test_score || true
@@ -54,8 +43,7 @@ curl -sS -f -X POST "${API_BASE}/api/scores" \
 echo "[test] 2/6 — Backup (doit capturer ${TEST_PLAYER})..."
 BACKUP_OUTPUT="$(ssh "$SSH_HOST" "$REMOTE_BACKUP_SCRIPT")"
 echo "$BACKUP_OUTPUT"
-# Extrait le chemin entre "OK : " et l'espace suivant (voir le format de
-# sortie de backup-arcadepipe-db.sh : "[backup] OK : /chemin/fichier.db (20K, ...)").
+# Extrait le chemin de la ligne "[backup] OK : /chemin/fichier.db (20K, ...)".
 BACKUP_PATH="$(echo "$BACKUP_OUTPUT" | awk -F'OK : ' '/OK :/{split($2,a," "); print a[1]}')"
 if [ -z "$BACKUP_PATH" ]; then
   echo "[test] ERREUR : impossible de déterminer le fichier de backup produit." >&2
@@ -83,5 +71,4 @@ else
 fi
 
 echo "[test] 6/6 — Nettoyage (voir aussi le trap EXIT, filet de sécurité en cas d'échec plus haut)."
-# La suppression réelle est faite par cleanup() via le trap ci-dessus — pas
-# de duplication ici, juste le point de sortie normal du script.
+# La suppression est faite par cleanup() (trap EXIT ci-dessus).

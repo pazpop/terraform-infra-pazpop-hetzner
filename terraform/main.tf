@@ -39,29 +39,18 @@ resource "hcloud_primary_ip" "arcadepipe_ipv4" {
   location    = var.location
   auto_delete = false
 
-  // Garde-fou supplémentaire (pas une protection absolue) : bloque un
-  // "tofu destroy"/apply qui supprimerait cette ressource PAR ERREUR DE
-  // CONFIGURATION (ex: un refactor qui la retire du .tf par mégarde) — ça
-  // ne protège pas contre un "tofu destroy" volontaire (ou lancé dans le
-  // mauvais workspace) auquel on répond "yes". La vraie protection reste
-  // de toujours lire un "tofu plan" avant d'appliquer. Seule ressource du
-  // stack avec une conséquence DNS si elle disparaît (voir commentaire
-  // ci-dessus : le A record ne suit jamais le VPS, il suit cette IP).
+  // Garde-fou (pas une protection absolue) : bloque un destroy/apply qui supprimerait l'IP
+  // par erreur de configuration. Seule ressource dont la perte casse le DNS (le A record
+  // suit cette IP). La vraie protection : toujours lire `tofu plan`.
   lifecycle {
     prevent_destroy = true
   }
 }
 
-// Volontairement PAS de prevent_destroy ici, contrairement à
-// hcloud_primary_ip ci-dessus — c'est l'inverse qu'on veut sur ce serveur :
-// pouvoir le détruire/recréer sans friction (disaster-recovery, changement
-// de cloud-init.yaml qui ne s'applique qu'à la création). Testé en
-// conditions réelles cette session : un destroy/recreate complet du VPS,
-// suivi d'une reconfiguration automatique intégrale via cloud-init (SSH
-// durci, fail2ban, compte deploy) sans aucune intervention manuelle.
-// Mettre prevent_destroy dessus casserait ce mécanisme déjà validé, pour un
-// bénéfice nul : contrairement à l'IP, recréer le serveur ne casse aucun
-// enregistrement DNS externe.
+// Pas de prevent_destroy ici : détruire/recréer le serveur doit rester sans friction
+// (reprise après sinistre ; cloud-init ne s'applique qu'à la création). Testé en réel :
+// recréation complète et reconfiguration intégrale par cloud-init. Contrairement à l'IP,
+// recréer le serveur ne casse aucun DNS.
 resource "hcloud_server" "arcadepipe" {
   name         = var.server_name
   server_type  = var.server_type
