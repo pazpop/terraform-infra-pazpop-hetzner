@@ -44,7 +44,7 @@ services:
       - "traefik.http.routers.arcadepipe-api.entrypoints=websecure"
       - "traefik.http.routers.arcadepipe-api.tls.certresolver=letsencrypt"
       - "traefik.http.routers.arcadepipe-api.priority=10"
-      - "traefik.http.routers.arcadepipe-api.middlewares=rate-limit@file,secure-headers@file"
+      - "traefik.http.routers.arcadepipe-api.middlewares=api-body-limit@file,rate-limit@file,secure-headers@file"
       - "traefik.http.services.arcadepipe-api.loadbalancer.server.port=8000"
 
   frontend:
