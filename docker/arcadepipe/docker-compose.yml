@@ -79,7 +79,18 @@ services:
       - "traefik.http.routers.arcadepipe-web.entrypoints=websecure"
       - "traefik.http.routers.arcadepipe-web.tls.certresolver=letsencrypt"
       - "traefik.http.routers.arcadepipe-web.priority=1"
-      - "traefik.http.routers.arcadepipe-web.middlewares=rate-limit@file,secure-headers@file"
+      # Pas de rate-limit ici (contrairement à arcadepipe-api ci-dessus) :
+      # ce routeur sert des fichiers statiques (JS vanilla sans bundler —
+      # ~24 fichiers JS + CSS/HTML chargés séparément par page, en plus de
+      # la musique) plutôt qu'une API qui écrit en base. Un simple second
+      # onglet ouvert en même temps, ou une IP partagée (réseau familial,
+      # NAT mobile), suffisait à dépasser le burst du middleware sans rien
+      # d'anormal — provoquait des 429 sur les fichiers .xm côté jeu
+      # (silence audio permanent, voir GAMEPLAY.md du repo arcadepipe,
+      # "Retour d'expérience", 3e round). Servir un fichier statique est bon
+      # marché ; limiter par IP ici protégeait contre un risque quasi nul
+      # au prix de casser un usage légitime courant.
+      - "traefik.http.routers.arcadepipe-web.middlewares=secure-headers@file"
       - "traefik.http.services.arcadepipe-web.loadbalancer.server.port=80"
       # Lu par le générateur du portail (voir portal/) — sans rapport avec
       # le routage Traefik lui-même.
