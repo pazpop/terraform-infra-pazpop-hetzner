@@ -50,7 +50,7 @@ Ensuite, depuis la racine : `./deploy.sh traefik`, puis `./deploy.sh portal`, pu
 
 - [ ] Alertes (webhook Discord/Slack) sur les bans fail2ban, les arrêts de service et les échecs de backup : aujourd'hui, tout est à vérifier à la main (`fail2ban-client status sshd`, `docker compose ps`).
 - [ ] Backups : copie distante (aujourd'hui uniquement locaux). Le point d'extension est prévu dans `backup-arcadepipe-db.sh` (`BACKUP_DEST`).
-- [ ] Durcir la CSP : `'wasm-unsafe-eval'` à la place de `'unsafe-eval'` (le lecteur de musique d'arcadepipe est en WebAssembly). À tester sur Chromium et Firefox avant d'appliquer : l'AudioWorklet hérite de la CSP de la page.
+- [ ] Durcir la CSP : `'wasm-unsafe-eval'` à la place de `'unsafe-eval'` (le lecteur de musique d'arcadepipe est en WebAssembly). **D'abord prouver que `'unsafe-eval'` est réellement requis** : c'est supposé, jamais testé (essayer sans, puis avec `'wasm-unsafe-eval'` seul). À tester sur Chromium et Firefox avant d'appliquer : l'AudioWorklet hérite de la CSP de la page.
 - [ ] Scan de vulnérabilités des images Docker (Trivy) dans le CI d'ArcadePipe.
 - [ ] Décision Traefik ou Caddy à reposer quand un 2e jeu se précise (voir la ROADMAP d'arcadepipe).
 
