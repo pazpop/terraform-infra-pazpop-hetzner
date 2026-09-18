@@ -35,10 +35,15 @@ http:
         # par Emscripten en asm.js (pas du WebAssembly — aucun .wasm séparé),
         # qui utilise eval() dans son code d'initialisation. 'unsafe-inline'
         # sur style-src : le portail (portal/generator/generate.sh) génère un
-        # <style> inline dans le <head> de sa page. Vérifié avant application
-        # en relisant les deux sources, pas une valeur par défaut copiée
-        # sans réfléchir.
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+        # <style> inline dans le <head> de sa page. googletagmanager.com sur
+        # script-src/connect-src : Google Analytics (arcadepipe, voir
+        # js/analytics.js côté frontend) — chargé en <script src> classique,
+        # jamais inline, donc pas besoin de 'unsafe-inline' sur script-src
+        # pour ça. Portail-wide comme le reste de ce middleware : s'applique
+        # à tous les jeux/sites derrière ce Traefik, pas qu'arcadepipe.
+        # Vérifié avant application en relisant les sources concernées, pas
+        # une valeur par défaut copiée sans réfléchir.
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
         customResponseHeaders:
           Permissions-Policy: "camera=(), microphone=(), geolocation=()"
           Server: ""
