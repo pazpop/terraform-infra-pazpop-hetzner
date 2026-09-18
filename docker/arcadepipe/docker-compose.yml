@@ -83,8 +83,8 @@ services:
       # 2026-09-17 (contrairement à arcadepipe-api ci-dessus, qui le garde).
       #
       # Pourquoi : ce routeur sert des fichiers statiques (JS vanilla sans
-      # bundler — ~24 fichiers JS + CSS/HTML chargés séparément par page, en
-      # plus de la musique) plutôt qu'une API qui écrit en base. Un simple
+      # bundler — une quarantaine de fichiers JS + CSS/HTML chargés
+      # séparément par page, en plus de la musique) plutôt qu'une API qui écrit en base. Un simple
       # second onglet ouvert en même temps, ou une IP partagée (réseau
       # familial, NAT mobile), suffisait à dépasser le burst (40) du
       # middleware sans rien d'anormal — provoquait des 429 sur les fichiers
@@ -98,8 +98,8 @@ services:
       # défaut/prudence) : NE PAS remettre rate-limit@file tel quel, il
       # redéclenchera le même problème. Créer plutôt un middleware dédié aux
       # fichiers statiques avec un burst nettement plus large (au moins
-      # 80-100, pour couvrir ~24-27 requêtes × 2-3 onglets/clients
-      # simultanés sur la même IP) dans middlewares.yml, et le tester en
+      # 80-100, pour couvrir une quarantaine de requêtes × 2-3
+      # onglets/clients simultanés sur la même IP) dans middlewares.yml, et le tester en
       # rechargeant la page plusieurs fois de suite avant de déployer.
       - "traefik.http.routers.arcadepipe-web.middlewares=secure-headers@file"
       - "traefik.http.services.arcadepipe-web.loadbalancer.server.port=80"
