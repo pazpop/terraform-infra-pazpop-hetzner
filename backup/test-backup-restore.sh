@@ -26,6 +26,16 @@ conn.close()
 \"" >/dev/null
 }
 
+# Nombre de lignes du score de test dans la VRAIE base (0 ou 1) : indépendant du
+# classement (via l'API, le score de test pourrait sortir du top affiché).
+count_test_score() {
+  ssh "$SSH_HOST" "docker exec arcadepipe-backend-1 python3 -c \"
+import sqlite3
+conn = sqlite3.connect('/data/arcadepipe.db')
+print(conn.execute(\\\"SELECT COUNT(*) FROM scores WHERE player_name = '${TEST_PLAYER}'\\\").fetchone()[0])
+\""
+}
+
 # Nettoyage garanti même en cas d'échec (trap sur EXIT) : pas de faux scores dans le vrai classement.
 cleanup() {
   echo "[test] Nettoyage : suppression de ${TEST_PLAYER}..."
@@ -53,7 +63,7 @@ echo "[test] Fichier de backup : $BACKUP_PATH"
 
 echo "[test] 3/6 — Suppression du score en direct (simule une perte de données)..."
 delete_test_score
-if curl -sS "${API_BASE}/api/scores?limit=100" | grep -q "$TEST_PLAYER"; then
+if [ "$(count_test_score)" != "0" ]; then
   echo "[test] ERREUR : le score de test est toujours présent après suppression." >&2
   exit 1
 fi
@@ -63,7 +73,7 @@ echo "[test] 4/6 — Restauration depuis le backup..."
 ssh "$SSH_HOST" "$REMOTE_RESTORE_SCRIPT '$BACKUP_PATH'"
 
 echo "[test] 5/6 — Vérification que le score est revenu..."
-if curl -sS "${API_BASE}/api/scores?limit=100" | grep -q "$TEST_PLAYER"; then
+if [ "$(count_test_score)" = "1" ]; then
   echo "[test] ✅ SUCCÈS — ${TEST_PLAYER} a bien été restauré."
 else
   echo "[test] ❌ ÉCHEC — ${TEST_PLAYER} absent après restauration." >&2

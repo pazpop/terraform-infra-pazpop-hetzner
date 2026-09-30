@@ -2,7 +2,7 @@
 #
 # Données PERSONNELLES (personnes vivantes) : jamais sur le portail, inscription
 # fermée, et non exposé tant que GRAMPS_EXPOSE n'est pas à true (voir README.md,
-# « Premier démarrage »).
+# « Premier déploiement »).
 #
 # Variables lues dans .env (gitignoré, voir .env.example) : GRAMPS_DOMAIN,
 # GRAMPS_EXPOSE, GRAMPS_TREE. Aucun secret en `environment:` : la clé Flask est

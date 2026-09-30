@@ -53,8 +53,8 @@ write_files:
 
 # Reboot en dernière étape : applique un éventuel nouveau noyau et garantit un état propre
 # avant tout déploiement (Docker, sshd et fail2ban redémarrent seuls).
-# Pas le module cloud-init `power_state` : son garde-fou interne s'est déclenché à tort
-# et a annulé le reboot en silence. Un `reboot` en fin de runcmd n'a pas ce défaut.
+# `reboot` en fin de runcmd plutôt que le module `power_state`, dont le garde-fou peut
+# annuler le reboot en silence.
 runcmd:
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker

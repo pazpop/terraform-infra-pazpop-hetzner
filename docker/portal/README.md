@@ -38,4 +38,4 @@ Transfère la stack, construit et démarre les conteneurs, vérifie `game.pazpop
 
 ## Roadmap
 
-- [ ] Durcir `web` comme `generator`/`docker-socket-proxy` (`cap_drop: ALL`, rootfs read-only, non-root) — nécessite une image Caddy custom (même limite que le frontend d'arcadepipe, simple serveur de fichiers statiques)
+- [ ] Durcir `web` comme `generator`/`docker-socket-proxy` (`cap_drop: ALL`, rootfs read-only, non-root) : même recette que le frontend d'arcadepipe (`setcap cap_net_bind_service` sur le binaire Caddy, utilisateur dédié, `/config` et `/data` en tmpfs).
