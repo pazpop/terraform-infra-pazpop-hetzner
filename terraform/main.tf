@@ -48,8 +48,8 @@ resource "hcloud_primary_ip" "arcadepipe_ipv4" {
 }
 
 // Pas de prevent_destroy ici : détruire/recréer le serveur doit rester sans friction
-// (reprise après sinistre ; cloud-init ne s'applique qu'à la création). Testé en réel :
-// recréation complète et reconfiguration intégrale par cloud-init. Contrairement à l'IP,
+// (reprise après sinistre ; cloud-init ne s'applique qu'à la création). Vérifié : une
+// recréation complète est entièrement reconfigurée par cloud-init. Contrairement à l'IP,
 // recréer le serveur ne casse aucun DNS.
 resource "hcloud_server" "arcadepipe" {
   name         = var.server_name

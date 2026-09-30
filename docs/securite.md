@@ -13,7 +13,7 @@
 
 ## Traefik (`docker/traefik/dynamic/middlewares.yml`)
 
-- **CSP** sur `secure-headers`, pour tous les sites derrière Traefik. `'unsafe-eval'` : lecteur de musique d'arcadepipe (libopenmpt en WebAssembly, `lib/libopenmpt.worklet.js`) ; `'unsafe-inline'` sur `style-src` : `<style>` du portail ; `googletagmanager.com` et `google-analytics.com` : Google Analytics, injecté après consentement du visiteur (jamais de script inline). Testé en réel le 2026-09-18 : zéro violation. Si `www.google-analytics.com` est bloqué chez le visiteur, gtag bascule sur `www.google.com/g/collect`, non autorisé : erreurs console sans conséquence.
+- **CSP** sur `secure-headers`, pour tous les sites derrière Traefik. `'unsafe-eval'` : lecteur de musique d'arcadepipe (libopenmpt en WebAssembly, `lib/libopenmpt.worklet.js`) ; `'unsafe-inline'` sur `style-src` : `<style>` du portail ; `googletagmanager.com` et `google-analytics.com` : Google Analytics, injecté après consentement du visiteur (jamais de script inline). Aucune violation de CSP constatée en navigation réelle. Si `www.google-analytics.com` est bloqué chez le visiteur, gtag bascule sur `www.google.com/g/collect`, non autorisé : erreurs console sans conséquence.
 - **Rate-limit** (`rate-limit`) : 20 req/s par IP (burst 40) sur `arcadepipe-api` et le portail. **Pas sur `arcadepipe-web`** (fichiers statiques) : une quarantaine de fichiers JS par page, un second onglet ou une IP partagée dépassait le burst et provoquait des 429 sur la musique.
 - **Taille des requêtes** (`api-body-limit`) : 10 Ko sur le corps envoyé au routeur `arcadepipe-api` uniquement. Jamais sur `arcadepipe-web` (musique de plusieurs centaines de Ko) ; seul `maxRequestBodyBytes` est posé, jamais `maxResponseBodyBytes`.
 
