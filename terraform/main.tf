@@ -6,7 +6,7 @@ resource "hcloud_ssh_key" "arcadepipe" {
 resource "hcloud_firewall" "arcadepipe" {
   name = "arcadepipe-firewall"
 
-  // sshd n'écoute plus que sur ce port (voir ssh.socket.d/override.conf sur
+  // sshd n'écoute que sur ce port (voir ssh.socket.d/override.conf sur
   // la VPS) : le 22 par défaut attire énormément de scans automatisés.
   rule {
     direction  = "in"
@@ -32,7 +32,7 @@ resource "hcloud_firewall" "arcadepipe" {
 
 // IP séparée du cycle de vie du serveur : détruire/recréer le serveur ne la
 // touche pas (auto_delete = false), donc le VPS garde toujours la même IP
-// et le enregistrement DNS A n'a jamais besoin d'être changé.
+// et l'enregistrement DNS A n'a jamais besoin d'être changé.
 resource "hcloud_primary_ip" "arcadepipe_ipv4" {
   name        = "arcadepipe-vps-ip"
   type        = "ipv4"

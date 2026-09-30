@@ -14,13 +14,12 @@
 # set -euo pipefail : un échec fait passer le service systemd en "failed" (trace
 # dans journalctl) au lieu de laisser croire qu'un backup a été pris.
 set -euo pipefail
+source "$(dirname "$0")/common.sh"
 
-# Destination isolée ici, comme pour arcadepipe : un stockage distant s'ajoutera EN PLUS
-# (rclone après la rétention). Important ici : l'arbre ne se reconstruit pas.
+# Destination locale ; un stockage distant s'ajoutera en plus (prioritaire ici : l'arbre
+# ne se reconstruit pas).
 BACKUP_DEST="/var/backups/gramps"
-IMAGE="gramps-backup-tool"
-TIMESTAMP="$(date +%Y-%m-%d_%H%M)"
-ARCHIVE="gramps_${TIMESTAMP}.tar.gz"
+ARCHIVE="gramps_$(date +%Y-%m-%d_%H%M).tar.gz"
 
 DAILY_DIR="$BACKUP_DEST/daily"
 WEEKLY_DIR="$BACKUP_DEST/weekly"
@@ -34,7 +33,7 @@ trap 'rm -rf "$WORK"' EXIT
 echo "[backup-gramps] Démarrage $(date -Iseconds)"
 
 # Pas de montage ":ro" sur les volumes SQLite : sqlite3 doit pouvoir créer ses fichiers
-# de verrou même pour lire (constaté sur arcadepipe, voir backup/README.md).
+# de verrou même pour lire.
 # `.backup` copie une base vivante de façon cohérente ; chaque copie est vérifiée tout
 # de suite par integrity_check (une source corrompue donnerait une copie corrompue).
 docker run --rm \
@@ -69,8 +68,7 @@ docker run --rm \
     cp -a /src/secret /out/secret
     tar -C /src -cf /out/media.tar media
     # Le conteneur écrit en root : rendre la copie à "deploy", sinon le nettoyage
-    # (trap rm -rf) échoue, le service passe en "failed" et une copie en clair reste
-    # sur le disque chaque nuit (trouvé en relecture, avant tout déploiement).
+    # (trap rm -rf) échoue et une copie en clair reste sur le disque.
     chown -R "$HOST_UID:$HOST_GID" /out
   '
 
@@ -85,19 +83,4 @@ tar -C "$WORK" -czf "$DAILY_DIR/$ARCHIVE" .
 chmod 600 "$DAILY_DIR/$ARCHIVE"
 echo "[backup-gramps] OK : $DAILY_DIR/$ARCHIVE ($(du -h "$DAILY_DIR/$ARCHIVE" | cut -f1))"
 
-# Le dimanche, l'archive du jour (déjà validée) est aussi copiée dans weekly/.
-if [ "$(date +%u)" = "7" ]; then
-  cp -p "$DAILY_DIR/$ARCHIVE" "$WEEKLY_DIR/$ARCHIVE"
-  echo "[backup-gramps] Copiée aussi dans weekly/ (dimanche)"
-fi
-
-# Rétention : les N plus récentes par dossier. `xargs -r` : rien à purger = pas d'erreur.
-purge_old() {
-  local dir="$1"
-  local keep="$2"
-  ls -t "$dir" | tail -n "+$((keep + 1))" | xargs -r -I{} rm -- "$dir/{}"
-}
-purge_old "$DAILY_DIR" 7
-purge_old "$WEEKLY_DIR" 4
-
-echo "[backup-gramps] Terminé $(date -Iseconds) — $(ls "$DAILY_DIR" | wc -l) daily, $(ls "$WEEKLY_DIR" | wc -l) weekly"
+rotation "$DAILY_DIR/$ARCHIVE"

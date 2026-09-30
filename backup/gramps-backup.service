@@ -7,5 +7,5 @@ Requires=docker.service
 Type=oneshot
 # User=deploy (groupe docker) : moindre privilège, pas de sudo.
 User=deploy
-WorkingDirectory=/home/deploy/backup-gramps
-ExecStart=/home/deploy/backup-gramps/backup-gramps.sh
+WorkingDirectory=/home/deploy/backup
+ExecStart=/home/deploy/backup/backup-gramps.sh

@@ -1,29 +1,18 @@
 version: 2
 updates:
-  # Actions GitHub, maintenant épinglées par SHA (voir
-  # .github/workflows/deploy-arcadepipe.yml) — Dependabot sait lire un SHA +
-  # commentaire "# vX" et proposer une PR de bump vers le nouveau SHA
-  # correspondant, donc le pin par SHA n'empêche pas les mises à jour, juste
-  # l'exécution silencieuse d'un tag qu'on ne surveille pas soi-même.
+  # Actions épinglées par SHA : Dependabot lit le commentaire "# vX" et propose le nouveau SHA.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
 
-  # Images des docker-compose.yml (FROM/image:) : docker/gramps/README.md et
-  # backup/Dockerfile annonçaient déjà des PR Dependabot pour ces épinglages
-  # sans qu'aucun écosystème "docker" ne soit configuré (trouvé en révisant
-  # la doc le 2026-09-29 — la dérive de version de grampsweb, corrigée le
-  # même jour, n'aurait jamais été signalée). Un répertoire par stack, pas
-  # de portée "/" : chaque image y est déjà relue avant d'être épinglée.
-  # docker/gramps n'a pas de Dockerfile, seulement un docker-compose.yml :
-  # l'écosystème "docker" n'y trouve rien et le job échoue ; il faut
-  # l'écosystème "docker-compose", qui lit les lignes image:.
+  # Images épinglées (lignes image: des compose, FROM des Dockerfile), un répertoire par stack.
+  # docker/arcadepipe n'y est pas : ses images :latest viennent du CI d'arcadepipe.
   - package-ecosystem: "docker-compose"
-    directory: "/docker/gramps"
+    directories: ["/docker/gramps", "/docker/traefik", "/docker/portal"]
     schedule:
       interval: "weekly"
   - package-ecosystem: "docker"
-    directory: "/backup"
+    directories: ["/backup", "/docker/portal/generator", "/docker/portal/web"]
     schedule:
       interval: "weekly"

@@ -62,13 +62,9 @@ unset PW
 
 Puis ouvrir la route : `GRAMPS_EXPOSE=true` dans `docker/gramps/.env`, et `./deploy.sh gramps` de nouveau (le résumé doit afficher ✅ 200 sur le domaine).
 
-Enfin, installer le backup : `cd backup && ./deploy-backup-gramps.sh`.
+Enfin, installer le backup : `cd backup && ./deploy-backup.sh`.
 
-## Import initial de l'arbre
-
-Dans l'interface : icône utilisateur ▸ Administration ▸ Données ▸ Importer, fichier `arbre/arbre.ged` du repo `arbre-genealogique`. Vérifier les compteurs (96 personnes, 36 familles au 2026-09-29) avant de confirmer.
-
-**Une seule fois** : l'import est additif, un second import du même fichier duplique tout. Ensuite, Gramps Web devient la référence de l'arbre ; les mises à jour passent par l'interface ou l'API, plus par le GEDCOM.
+Le contenu de l'arbre (import, restauration depuis Git) relève du repo `gramps-web`.
 
 ## Rôles utiles
 
@@ -94,7 +90,7 @@ Restauration **non testée à ce jour** (à faire avant d'y mettre des données 
 cd ~/gramps && docker compose stop grampsweb gramps-celery
 mkdir /tmp/restore && tar -xzf /var/backups/gramps/daily/gramps_AAAA-MM-JJ_HHMM.tar.gz -C /tmp/restore
 docker run --rm -v gramps_db:/dst/db -v gramps_users:/dst/users -v gramps_secret:/dst/secret \
-  -v gramps_media:/dst/media -v /tmp/restore:/src gramps-backup-tool sh -euc '
+  -v gramps_media:/dst/media -v /tmp/restore:/src backup-tool sh -euc '
     rm -rf /dst/db/* /dst/users/* /dst/secret/* /dst/media/*
     cp -a /src/db/. /dst/db/ && cp -a /src/users/. /dst/users/ && cp -a /src/secret/. /dst/secret/
     tar -C /dst -xf /src/media.tar'

@@ -21,5 +21,5 @@
 
 - **Données personnelles** (personnes vivantes) : inscription fermée, télémétrie coupée, absent du portail, `X-Robots-Tag: noindex`.
 - **Premier démarrage non exposé** (`GRAMPS_EXPOSE=false`) : l'assistant de Gramps Web laisserait le premier visiteur créer le compte propriétaire ; il est créé en ligne de commande avant d'ouvrir la route.
-- **Middlewares dédiés** `gramps-headers` (sans la CSP d'arcadepipe, qui bloquerait les cartes) et `gramps-rate-limit` (burst 200). CSP propre à Gramps : à écrire, voir la roadmap de `docker/gramps/README.md`.
+- **Middlewares dédiés** `gramps-headers` (sans la CSP d'arcadepipe, qui bloquerait les cartes), `gramps-rate-limit` (burst 200) et `gramps-login-limit` (5 essais/min par IP sur `/api/token/`). CSP propre à Gramps : à écrire, voir la roadmap de `docker/gramps/README.md`.
 - **Valkey et le worker Celery** hors de `traefik-public` (réseau `gramps-internal` seulement).

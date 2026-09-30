@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test de bout en bout du backup/restauration contre la VRAIE API en prod :
 # insère un score de test, backup, suppression, restauration, vérifie le retour,
-# nettoie (voir backup/README.md, « Test réel exécuté »).
+# nettoie (voir backup/README.md).
 #
 # Usage : ./test-backup-restore.sh
 set -euo pipefail

@@ -4,6 +4,7 @@
 # Scripté plutôt que documenté : un incident n'est pas le moment de taper à la
 # main. Déroulé humain équivalent : backup/README.md.
 set -euo pipefail
+source "$(dirname "$0")/common.sh"
 
 if [ $# -ne 1 ]; then
   echo "Usage: $0 <chemin-du-fichier-de-backup.db>" >&2
@@ -12,7 +13,6 @@ fi
 
 BACKUP_SOURCE="$1"
 VOLUME="backend_data"
-IMAGE="arcadepipe-backup-tool"
 DB_NAME="arcadepipe.db"
 
 if [ ! -f "$BACKUP_SOURCE" ]; then
@@ -58,8 +58,7 @@ docker run --rm -v "${BACKUP_DIR}:/backup:ro" -v "${VOLUME}:/data" "$IMAGE" \
 echo "[restore] 5/5 — Redémarrage du backend..."
 (cd ~/arcadepipe && docker compose start backend)
 
-# Sondage plutôt qu'un sleep fixe : le temps de démarrage varie (3 s s'est révélé
-# trop court une fois sur deux).
+# Sondage plutôt qu'un sleep fixe : le temps de démarrage varie.
 for i in $(seq 1 10); do
   if docker exec arcadepipe-backend-1 python3 -c \
       "import urllib.request as u; u.urlopen('http://localhost:8000/api/health', timeout=2)" 2>/dev/null; then

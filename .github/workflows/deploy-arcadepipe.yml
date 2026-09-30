@@ -2,18 +2,29 @@ name: Deploy ArcadePipe
 
 # Déclenché par le CI d'arcadepipe (repo public) une fois l'image poussée sur GHCR
 # (étape « Notifier terraform-infra-pazpop-hetzner » de son deploy.yml).
-# `workflow_dispatch` : redéploiement manuel depuis l'onglet Actions (rollback, nouvel essai).
+# `workflow_dispatch` : redéploiement manuel depuis l'onglet Actions. `tag` = SHA d'un commit
+# d'arcadepipe (images :<sha> publiées par son CI) pour un retour arrière ; vide = :latest.
 on:
   repository_dispatch:
     types: [arcadepipe-published]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "SHA du commit arcadepipe à redéployer (vide = latest)"
+        required: false
+        default: ""
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      TAG: ${{ inputs.tag || 'latest' }}
     steps:
+      - name: Valider le tag
+        run: '[[ "$TAG" =~ ^[0-9a-f]{40}$ || "$TAG" == latest ]] || { echo "Tag invalide : $TAG" >&2; exit 1; }'
+
       # Épinglé par SHA (un tag comme "v1" peut être déplacé) ; Dependabot ouvre les PR de mise à jour.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -46,11 +57,21 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
+          envs: TAG
           # `set -e` : sans lui, un `pull` en échec n'empêche pas `up -d`, et le job
           # rapporte « succès » en relançant l'ANCIENNE image en cache.
+          # Retour arrière : l'image :<sha> est retaguée :latest (le compose ne connaît que :latest) ;
+          # le prochain déploiement normal retire à nouveau la vraie :latest.
           script: |
             set -e
             cd ~/arcadepipe
-            docker compose pull
+            if [ "$TAG" = latest ]; then
+              docker compose pull
+            else
+              for img in arcadepipe-backend arcadepipe-frontend; do
+                docker pull "ghcr.io/pazpop/$img:$TAG"
+                docker tag "ghcr.io/pazpop/$img:$TAG" "ghcr.io/pazpop/$img:latest"
+              done
+            fi
             docker compose up -d
             docker image prune -f

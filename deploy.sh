@@ -121,9 +121,8 @@ done
 STATUT="$(ssh -n -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" "cd ~/$STACK && docker compose ps --format 'table {{.Name}}\t{{.Status}}'")"
 
 # Le statut Docker est le signal fiable (PAS_PRET non vide = délai de 30 s dépassé).
-# Chercher "error" dans les logs de Traefik a été abandonné : une course de
-# démarrage bénigne (docker-socket-proxy pas encore prêt) laisse toujours une
-# ligne d'erreur, donc un ❌ permanent.
+# Pas les logs de Traefik : une course de démarrage bénigne (docker-socket-proxy pas
+# encore prêt) y laisse toujours une ligne d'erreur.
 ECHEC=false
 [ -n "$PAS_PRET" ] && ECHEC=true
 

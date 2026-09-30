@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Déploie le mécanisme de backup (script, image jetable, unités systemd) sur la VPS.
-# Séparé de deploy.sh, conçu pour des stacks docker-compose : un backup est un
-# artefact de l'hôte, sans docker-compose.yml ni URL à vérifier.
+# Déploie les backups (arcadepipe et Gramps Web : scripts, image jetable, unités systemd)
+# sur la VPS. Séparé de deploy.sh, conçu pour des stacks docker-compose : un backup est
+# un artefact de l'hôte, sans docker-compose.yml ni URL à vérifier.
 # Idempotent : relançable sans risque.
 #
 # Usage : ./deploy-backup.sh
@@ -12,15 +12,16 @@ SSH_USER="deploy"
 SSH_PORT="2222"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAFORM_DIR="$SCRIPT_DIR/../terraform"
-TAR_PATH="/tmp/arcadepipe-backup-deploy.tar.gz"
+TAR_PATH="/tmp/backup-deploy.tar.gz"
 
 HOST="$(cd "$TERRAFORM_DIR" && tofu output -raw server_ip)"
 
-echo "== Déploiement du backup arcadepipe sur $HOST =="
+echo "== Déploiement des backups sur $HOST =="
 
 tar -czf "$TAR_PATH" -C "$SCRIPT_DIR" \
-  Dockerfile backup-arcadepipe-db.sh restore-arcadepipe-db.sh \
-  arcadepipe-backup.service arcadepipe-backup.timer
+  Dockerfile common.sh \
+  backup-arcadepipe-db.sh restore-arcadepipe-db.sh arcadepipe-backup.service arcadepipe-backup.timer \
+  backup-gramps.sh gramps-backup.service gramps-backup.timer
 scp -P "$SSH_PORT" -i "$SSH_KEY" "$TAR_PATH" "$SSH_USER@$HOST:~/backup.tar.gz"
 rm -f "$TAR_PATH"
 
@@ -32,28 +33,30 @@ set -euo pipefail
 mkdir -p ~/backup
 tar xzf ~/backup.tar.gz -C ~/backup
 rm ~/backup.tar.gz
-chmod +x ~/backup/backup-arcadepipe-db.sh ~/backup/restore-arcadepipe-db.sh
+chmod +x ~/backup/*.sh
 
 echo "-- Build de l'image jetable --"
-docker build -t arcadepipe-backup-tool ~/backup
+docker build -t backup-tool ~/backup
 
 # /var/backups appartient à root : créé une fois avec sudo puis chown vers deploy,
-# pour que le timer (qui tourne en "deploy", jamais en root) n'ait besoin d'aucun
-# privilège élevé.
-echo "-- Préparation de /var/backups/arcadepipe --"
-sudo mkdir -p /var/backups/arcadepipe/daily /var/backups/arcadepipe/weekly
-sudo chown -R deploy:deploy /var/backups/arcadepipe
+# pour que les timers (qui tournent en "deploy", jamais en root) n'aient besoin d'aucun
+# privilège élevé. Gramps : données personnelles, dossier en 700.
+echo "-- Préparation de /var/backups --"
+for app in arcadepipe gramps; do
+  sudo mkdir -p "/var/backups/$app/daily" "/var/backups/$app/weekly"
+  sudo chown -R deploy:deploy "/var/backups/$app"
+done
+sudo chmod 700 /var/backups/gramps
 
 echo "-- Installation des unités systemd --"
-sudo cp ~/backup/arcadepipe-backup.service ~/backup/arcadepipe-backup.timer /etc/systemd/system/
+sudo cp ~/backup/*.service ~/backup/*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now arcadepipe-backup.timer
+sudo systemctl enable --now arcadepipe-backup.timer gramps-backup.timer
 
 echo "-- Statut --"
-systemctl status arcadepipe-backup.timer --no-pager -l | head -8
-systemctl list-timers arcadepipe-backup.timer --no-pager
+systemctl list-timers arcadepipe-backup.timer gramps-backup.timer --no-pager
 REMOTE_SCRIPT
 
 echo
 echo "== Déploiement terminé =="
-echo "Test immédiat possible : ssh arcadepipe-vps 'sudo systemctl start arcadepipe-backup.service && journalctl -u arcadepipe-backup.service -n 20 --no-pager'"
+echo "Test immédiat : ssh arcadepipe-vps 'sudo systemctl start arcadepipe-backup.service gramps-backup.service && journalctl -u arcadepipe-backup.service -u gramps-backup.service -n 30 --no-pager'"

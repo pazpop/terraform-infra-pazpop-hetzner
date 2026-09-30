@@ -33,7 +33,7 @@ Prérequis : [OpenTofu](https://opentofu.org/docs/intro/install/), un [token API
 
 ```sh
 cd terraform
-cp terraform.tfvars.example terraform.tfvars   # renseigner hcloud_token + ssh_source_cidrs
+cp terraform.tfvars.example terraform.tfvars   # renseigner hcloud_token
 tofu init && tofu plan && tofu apply
 ```
 

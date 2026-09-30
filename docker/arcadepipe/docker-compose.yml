@@ -76,12 +76,9 @@ services:
       - "traefik.http.routers.arcadepipe-web.entrypoints=websecure"
       - "traefik.http.routers.arcadepipe-web.tls.certresolver=letsencrypt"
       - "traefik.http.routers.arcadepipe-web.priority=1"
-      # rate-limit@file volontairement absent (retiré le 2026-09-17, contrairement à
-      # arcadepipe-api) : ce routeur sert une quarantaine de fichiers statiques par page ;
-      # un second onglet ou une IP partagée dépassait le burst (40), d'où des 429 sur les
-      # .xm et une musique muette (repo arcadepipe, docs/audio-saga.md, round 3).
-      # Pour le réactiver : un middleware dédié aux statiques, burst >= 100, testé en
-      # rechargeant la page plusieurs fois — jamais rate-limit@file tel quel.
+      # Pas de rate-limit@file ici : ce routeur sert une quarantaine de fichiers statiques
+      # par page, et un second onglet ou une IP partagée dépasse le burst (40) : 429 sur les
+      # .xm, musique muette. Pour en remettre un : middleware dédié aux statiques, burst >= 100.
       - "traefik.http.routers.arcadepipe-web.middlewares=secure-headers@file"
       - "traefik.http.services.arcadepipe-web.loadbalancer.server.port=80"
       # Lu par le générateur du portail (voir portal/) — sans rapport avec
@@ -96,10 +93,7 @@ networks:
     external: true
 
 volumes:
-  # Nom explicite : sans ça, Compose préfixe par le nom du projet (le nom du
-  # dossier de déploiement, ~/arcadepipe -> "arcadepipe_backend_data") — un
-  # script de backup qui référence "backend_data" en dur échouerait tel
-  # quel, ou pire, verrait un volume vide fraîchement créé sans backuper
-  # rien du tout. Trouvé en préparant backup/ (voir ce dossier).
+  # Nom explicite : sans lui, Compose préfixe par le nom du dossier
+  # ("arcadepipe_backend_data") et backup/ viserait un volume vide.
   backend_data:
     name: backend_data

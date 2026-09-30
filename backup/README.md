@@ -1,8 +1,9 @@
-# Backup de la DB arcadepipe
+# Backups
 
-> Gramps Web a son propre backup (`backup-gramps.sh`, `gramps-backup.{service,timer}`, `deploy-backup-gramps.sh`), décrit dans [docker/gramps/README.md](../docker/gramps/README.md#backup-et-restauration). Même image jetable (`Dockerfile`), mêmes principes (`.backup`, `integrity_check`, rétention 7/4).
+Deux backups quotidiens sur la VPS, par timers systemd, avec la même image jetable et la même rétention (`common.sh`) :
 
-Backup quotidien automatisé (3h du matin) de la base SQLite du jeu (volume Docker `backend_data`), via un timer systemd sur la VPS.
+- **arcadepipe** (3h) : la base SQLite du jeu (volume `backend_data`), décrit ci-dessous ;
+- **Gramps Web** (3h30) : `backup-gramps.sh`, décrit dans [docker/gramps/README.md](../docker/gramps/README.md#backup-et-restauration).
 
 ## Déploiement
 
@@ -11,15 +12,15 @@ cd backup
 ./deploy-backup.sh
 ```
 
-Idempotent — relançable sans risque après toute modification de `backup-arcadepipe-db.sh`, `restore-arcadepipe-db.sh` ou des unités systemd.
+Déploie les deux backups. Idempotent : relançable sans risque après toute modification d'un script ou d'une unité systemd.
 
-## Mécanisme
+## Mécanisme (arcadepipe)
 
-Un conteneur jetable (`backup/Dockerfile` — alpine + `sqlite3`, ~10 Mo, construit localement sur la VPS, jamais publié) monte le volume `backend_data` et exécute `sqlite3 arcadepipe.db ".backup '...'"` — l'API de backup officielle de SQLite, conçue pour copier une base **vivante** (mode WAL) de façon cohérente. Jamais de `cp` direct du fichier `.db` : un `cp` pourrait capturer un état à cheval entre le fichier principal et son `-wal`, potentiellement corrompu.
+Un conteneur jetable (`Dockerfile`, image `backup-tool` : alpine + `sqlite3`, ~10 Mo, construite sur la VPS, jamais publiée) monte le volume `backend_data` et exécute `sqlite3 arcadepipe.db ".backup '...'"` : l'API de backup officielle de SQLite, conçue pour copier une base **vivante** (mode WAL) de façon cohérente. Jamais de `cp` du fichier `.db` : il pourrait capturer un état à cheval entre le fichier principal et son `-wal`.
 
-Le montage n'est **pas** en lecture seule, contrairement à l'intention de départ — testé en réel : un montage `:ro` fait échouer `sqlite3` avec `unable to open database file`, même pour une simple lecture. Ouvrir une base en mode WAL exige de pouvoir créer/maintenir son fichier `-shm` (mémoire partagée de coordination des lecteurs), ce qu'un montage `:ro` interdit.
+Le montage n'est **pas** en lecture seule : avec `:ro`, `sqlite3` échoue (`unable to open database file`) même pour une simple lecture, car il doit pouvoir créer ses fichiers de verrou à côté de la base.
 
-Chaque backup produit est vérifié immédiatement après sa création (`PRAGMA integrity_check`, fichier non vide) — pas seulement au moment d'une restauration. Un `.backup` sur une source déjà corrompue produirait sinon un backup tout aussi corrompu, silencieusement.
+Chaque backup est vérifié dès sa création (`PRAGMA integrity_check`, fichier non vide) : un `.backup` d'une source corrompue produirait sinon un backup tout aussi corrompu, silencieusement.
 
 ## Emplacement et rétention
 
@@ -31,21 +32,13 @@ Chaque backup produit est vérifié immédiatement après sa création (`PRAGMA 
 
 Nommage : `arcadepipe_YYYY-MM-DD_HHMM.db`.
 
-## Destination — comment migrer vers un stockage distant plus tard
+## Stockage distant (non implémenté)
 
-Une seule variable dans `backup-arcadepipe-db.sh` isole la destination locale :
-
-```bash
-BACKUP_DEST="/var/backups/arcadepipe"
-```
-
-Passer à un stockage distant (rclone, S3, etc.) plus tard **s'ajoute** à ce qui existe, ça ne le remplace pas : le disque local reste un tampon même une fois le remote branché. La rétention locale (7 quotidiens/4 hebdomadaires) continue de tourner telle quelle ; il suffit d'ajouter, en toute fin de `backup-arcadepipe-db.sh`, une étape du style :
+`BACKUP_DEST` isole la destination locale dans chaque script. Un stockage distant **s'ajoutera** au disque local, qui reste un tampon : une étape en fin de script suffit, par exemple :
 
 ```bash
 rclone sync "$BACKUP_DEST" remote:mon-bucket/arcadepipe
 ```
-
-Aucune réécriture du mécanisme de backup lui-même — pas implémenté ici (pas de stockage distant pour l'instant).
 
 ## Restauration
 
@@ -58,29 +51,29 @@ ssh arcadepipe-vps
 
 Le script fait, dans l'ordre :
 
-1. **Vérifie l'intégrité du backup candidat** (`PRAGMA integrity_check`) — avant de toucher à quoi que ce soit de vivant. Si le fichier choisi est corrompu, on s'arrête ici, rien n'a encore été modifié.
-2. **Arrête le conteneur backend** (`docker compose stop backend`) — le frontend/Traefik restent en marche, seules les routes `/api/*` échouent pendant la restauration.
-3. **Supprime les fichiers `-wal`/`-shm` de l'ANCIENNE base.** C'est le piège classique d'une restauration SQLite en mode WAL : copier le nouveau `.db` par-dessus l'ancien sans supprimer son `-wal`/`-shm` ferait rejouer, au prochain démarrage, un journal WAL qui appartient à l'ancienne base sur la nouvelle — corruption silencieuse quasi garantie, découverte bien plus tard. Le fichier produit par `.backup` est autonome (pas de WAL actif) ; SQLite en recrée un propre tout seul au premier accès.
-4. **Copie le backup validé** à la place de l'ancienne base dans le volume.
+1. **Vérifie l'intégrité du backup candidat** (`PRAGMA integrity_check`) avant de toucher à quoi que ce soit : s'il est corrompu, rien n'est modifié.
+2. **Arrête le conteneur backend** (`docker compose stop backend`) : le site reste en ligne, seules les routes `/api/*` échouent pendant la restauration.
+3. **Supprime les fichiers `-wal`/`-shm` de l'ANCIENNE base.** Sinon SQLite rejouerait, au prochain démarrage, le journal de l'ancienne base sur la nouvelle : corruption silencieuse. Le fichier produit par `.backup` est autonome ; SQLite recrée un `-wal` propre au premier accès.
+4. **Copie le backup validé** à la place de l'ancienne base, et le rend au propriétaire du backend (`chown 1000:1000`, l'utilisateur `appuser` ; le conteneur jetable écrit en root).
 5. **Redémarre le backend** et vérifie que `/api/health` répond.
 
 ### Procédure manuelle (si le script n'est pas disponible)
 
 ```bash
 # 1. Intégrité du candidat
-docker run --rm -v /var/backups/arcadepipe/daily:/backup:ro arcadepipe-backup-tool \
+docker run --rm -v /var/backups/arcadepipe/daily:/backup backup-tool \
   sqlite3 /backup/arcadepipe_2026-09-17_0300.db "PRAGMA integrity_check;"
 
 # 2. Arrêt du backend
 cd ~/arcadepipe && docker compose stop backend
 
 # 3. Purge des -wal/-shm de l'ancienne base (ÉTAPE CRITIQUE, voir ci-dessus)
-docker run --rm -v backend_data:/data arcadepipe-backup-tool \
+docker run --rm -v backend_data:/data backup-tool \
   sh -c "rm -f /data/arcadepipe.db-wal /data/arcadepipe.db-shm"
 
 # 4. Copie du backup
-docker run --rm -v /var/backups/arcadepipe/daily:/backup:ro -v backend_data:/data arcadepipe-backup-tool \
-  sh -c "cp /backup/arcadepipe_2026-09-17_0300.db /data/arcadepipe.db"
+docker run --rm -v /var/backups/arcadepipe/daily:/backup:ro -v backend_data:/data backup-tool \
+  sh -c "cp /backup/arcadepipe_2026-09-17_0300.db /data/arcadepipe.db && chown 1000:1000 /data/arcadepipe.db"
 
 # 5. Redémarrage + vérification
 cd ~/arcadepipe && docker compose start backend
@@ -93,19 +86,9 @@ curl -sS https://arcadepipe.pazpop.net/api/health
 ./test-backup-restore.sh
 ```
 
-Contre la vraie API en prod (pas de simulation) : insère un score de test unique (nom horodaté) → backup → suppression en direct → restauration → vérifie le retour → nettoie (garanti même en cas d'échec en cours de route, via un `trap` sur la sortie du script). Le fichier de backup produit pendant le test n'est pas supprimé — c'est un backup légitime, la rétention normale (7 jours) s'en charge.
-
-## Test réel exécuté
-
-Un test complet a été exécuté sur la VPS de production lors de la mise en place de ce mécanisme, à deux reprises (la deuxième fois pour valider le correctif du bug de permissions ci-dessous) : insertion d'un score de test → backup → suppression du score en live → restauration → vérification du retour **et** vérification qu'un nouveau score peut être écrit après restauration → nettoyage. Pas simulé : sur la vraie base, avec un vrai arrêt/redémarrage du conteneur backend.
-
-Trois bugs réels trouvés et corrigés pendant ce test (aucun n'était visible en relisant le code, seulement en l'exécutant) :
-
-1. **`deploy-backup.sh` ne déployait rien du tout, silencieusement.** `ssh -n` redirige stdin depuis `/dev/null` — incompatible avec le heredoc utilisé pour envoyer le script distant via `bash -s`. Le script distant s'exécutait sur une entrée vide, sans la moindre erreur, et l'exécution locale affichait quand même "déploiement terminé".
-2. **`sqlite3` échoue systématiquement avec un montage `:ro`**, y compris pour une simple lecture (`PRAGMA integrity_check`) sur un fichier qui n'est même plus en mode WAL. SQLite a besoin de pouvoir créer des fichiers de verrouillage dans le répertoire contenant la base, quelle que soit l'opération. Tous les montages utilisés avec `sqlite3` dans les deux scripts sont donc en lecture-écriture (celui utilisé pour un simple `cp`, lui, reste `:ro`).
-3. **Le fichier restauré appartenait à `root`** (le conteneur jetable tourne en root), pas à l'utilisateur du backend (`appuser`, uid 1000) — le backend redémarrait avec une base illisible en écriture (`attempt to write a readonly database`). `restore-arcadepipe-db.sh` fait maintenant un `chown 1000:1000` après la copie.
+Contre la vraie API en prod : insère un score de test unique (nom horodaté) → backup → suppression en direct → restauration → vérifie le retour → nettoie (garanti même en cas d'échec, via un `trap` sur la sortie du script). Le fichier de backup produit est un backup légitime : la rétention normale s'en charge.
 
 ## Limites connues
 
-- Backup local uniquement pour l'instant (voir *Destination* ci-dessus) — une panne disque de la VPS emporte à la fois la base live et ses backups. Acceptable en l'état pour un POC ; à revoir avant tout usage avec des données qu'on ne peut pas se permettre de perdre.
-- Aucune alerte en cas d'échec du timer — voir Roadmap du README principal (déjà identifié comme point ouvert plus large, pas spécifique au backup).
+- Backups locaux uniquement : une panne disque de la VPS emporte la base et ses backups (voir *Stockage distant*).
+- Aucune alerte en cas d'échec d'un timer : voir la Roadmap du README principal.

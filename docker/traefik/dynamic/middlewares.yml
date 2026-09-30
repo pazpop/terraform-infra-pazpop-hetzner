@@ -43,8 +43,6 @@ http:
         # jamais inline, donc pas besoin de 'unsafe-inline' sur script-src
         # pour ça. Portail-wide comme le reste de ce middleware : s'applique
         # à tous les jeux/sites derrière ce Traefik, pas qu'arcadepipe.
-        # Vérifié avant application en relisant les sources concernées, pas
-        # une valeur par défaut copiée sans réfléchir.
         contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
         customResponseHeaders:
           Permissions-Policy: "camera=(), microphone=(), geolocation=()"

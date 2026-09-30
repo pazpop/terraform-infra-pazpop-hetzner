@@ -37,15 +37,14 @@ services:
     # >= v3.6.1 requis : les versions antérieures négocient une version
     # d'API Docker figée à 1.24, insuffisante pour Docker >= 29 (minimum
     # relevé à 1.44).
-    image: traefik:v3.7
+    image: traefik:v3.7.13
     environment:
       - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL}
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      # Plus d'accès direct à /var/run/docker.sock : tout passe par
-      # docker-socket-proxy ci-dessus.
+      # Pas de /var/run/docker.sock : tout passe par docker-socket-proxy ci-dessus.
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - ./dynamic:/etc/traefik/dynamic:ro
       - letsencrypt:/letsencrypt
