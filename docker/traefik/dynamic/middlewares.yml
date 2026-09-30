@@ -1,0 +1,88 @@
+http:
+  middlewares:
+    # Par IP source (comportement par défaut du middleware) : un client
+    # normal ne s'approche jamais de 20 req/s en usage courant (chargement
+    # de page, appels API du jeu), donc plafonner ici gêne uniquement les
+    # scans/bots agressifs et les tentatives de brute-force applicatif —
+    # fail2ban ne protège que SSH, rien côté 80/443 avant ce middleware.
+    rate-limit:
+      rateLimit:
+        average: 20
+        period: 1s
+        burst: 40
+
+    # Plafonne la taille du BODY envoyé par le client (requêtes POST) — sans
+    # ça, un payload énorme serait lu en mémoire par le backend avant même
+    # que Pydantic ne le rejette. Seul maxRequestBodyBytes est posé : ne
+    # jamais toucher maxResponseBodyBytes ici, ça limiterait aussi ce que le
+    # serveur RENVOIE (fichiers statiques, musique .xm de plusieurs centaines
+    # de Ko) — or ce middleware n'est attaché qu'au routeur API
+    # (docker-compose.yml, arcadepipe-api), jamais à celui qui sert le jeu.
+    # 10 Ko : un score (pseudo + 3 entiers en JSON) tient sur quelques
+    # dizaines d'octets, large marge sans jamais gêner un usage normal.
+    api-body-limit:
+      buffering:
+        maxRequestBodyBytes: 10240
+
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        customFrameOptionsValue: "SAMEORIGIN"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        # 'unsafe-eval' : requis par le lecteur de musique d'arcadepipe
+        # (lib/libopenmpt.worklet.js : libopenmpt compilé en WebAssembly par
+        # Emscripten, binaire embarqué dans le fichier — pas de .wasm séparé).
+        # 'wasm-unsafe-eval' serait une alternative plus étroite, non testée.
+        # 'unsafe-inline' sur style-src : le portail
+        # (portal/generator/generate.sh) génère un <style> inline dans le
+        # <head> de sa page. googletagmanager.com sur script-src/connect-src : Google Analytics (arcadepipe, voir
+        # js/consent.js et js/analytics.js côté frontend) — tag injecté
+        # dynamiquement avec un src externe après consentement du visiteur,
+        # jamais inline, donc pas besoin de 'unsafe-inline' sur script-src
+        # pour ça. Portail-wide comme le reste de ce middleware : s'applique
+        # à tous les jeux/sites derrière ce Traefik, pas qu'arcadepipe.
+        # Vérifié avant application en relisant les sources concernées, pas
+        # une valeur par défaut copiée sans réfléchir.
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+        customResponseHeaders:
+          Permissions-Policy: "camera=(), microphone=(), geolocation=()"
+          Server: ""
+
+    # --- Gramps Web (docker/gramps/) -------------------------------------------
+    # Mêmes en-têtes que secure-headers, SANS sa CSP : celle-ci est taillée pour
+    # arcadepipe (Google Analytics, 'unsafe-eval') et bloquerait les tuiles de
+    # carte de Gramps Web (img-src limité à 'self'). Une CSP propre à Gramps reste
+    # à écrire en observant la console du navigateur (voir docker/gramps/README.md,
+    # Roadmap) — pas de valeur devinée ici.
+    gramps-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        customFrameOptionsValue: "SAMEORIGIN"
+        referrerPolicy: "strict-origin-when-cross-origin"
+        customResponseHeaders:
+          Permissions-Policy: "camera=(), microphone=(), geolocation=()"
+          # Pas d'indexation par les moteurs de recherche, même si une page fuitait.
+          X-Robots-Tag: "noindex, nofollow"
+          Server: ""
+
+    # Une page de Gramps Web charge des dizaines de vignettes d'un coup : le burst 40
+    # de rate-limit donnerait des 429 (même piège qu'arcadepipe-web). Le login a son
+    # propre routeur et sa propre limite (gramps-login-limit, ci-dessous).
+    gramps-rate-limit:
+      rateLimit:
+        average: 50
+        period: 1s
+        burst: 200
+
+    # Login Gramps Web (/api/token/, y compris le rafraîchissement du jeton) :
+    # 5 requêtes par minute et par IP, rafale de 10. Un humain n'en fait que
+    # quelques-unes ; un brute-force est ramené à ~7 000 essais par jour et par IP.
+    gramps-login-limit:
+      rateLimit:
+        average: 5
+        period: 1m
+        burst: 10

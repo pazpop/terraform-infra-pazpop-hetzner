@@ -1,0 +1,105 @@
+# Logs Docker plafonnés (10 Mo x 3 par conteneur) : le driver par défaut accumule à l'infini
+# et peut remplir le disque de la VPS.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # Routage géré par Traefik via labels — ni backend ni frontend ne
+  # publient de port ; seule Traefik est exposée sur 80/443.
+  #
+  # Pas de "build:" ici, contrairement à traefik/portal : les images sont
+  # publiées par le CI du repo applicatif (github.com/pazpop/arcadepipe,
+  # public) sur GHCR à chaque push — ce repo-ci se contente de les tirer et
+  # de les router. `docker compose pull` (voir deploy.sh et le workflow
+  # deploy-arcadepipe.yml) récupère toujours la dernière version poussée.
+  backend:
+    image: ghcr.io/pazpop/arcadepipe-backend:latest
+    volumes:
+      - backend_data:/data
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:5500,http://localhost,https://arcadepipe.pazpop.net
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    logging: *default-logging
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.arcadepipe-api.rule=Host(`arcadepipe.pazpop.net`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.arcadepipe-api.entrypoints=websecure"
+      - "traefik.http.routers.arcadepipe-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.arcadepipe-api.priority=10"
+      - "traefik.http.routers.arcadepipe-api.middlewares=api-body-limit@file,rate-limit@file,secure-headers@file"
+      - "traefik.http.services.arcadepipe-api.loadbalancer.server.port=8000"
+
+  frontend:
+    image: ghcr.io/pazpop/arcadepipe-frontend:latest
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    logging: *default-logging
+    read_only: true
+    tmpfs:
+      # /config,/data : XDG_CONFIG_HOME/XDG_DATA_HOME de Caddy (autosave de
+      # config, cache) — jamais de vrais certificats ici (Traefik termine le
+      # TLS), donc aucune perte à les garder éphémères plutôt que persistés.
+      - /tmp
+      - /config
+      - /data
+    cap_drop:
+      - ALL
+    # NET_BIND_SERVICE : indispensable pour que le Caddy non-root (voir le
+    # Dockerfile du repo arcadepipe, USER caddyuser) puisse quand même se
+    # lier au port 80.
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.25
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.arcadepipe-web.rule=Host(`arcadepipe.pazpop.net`)"
+      - "traefik.http.routers.arcadepipe-web.entrypoints=websecure"
+      - "traefik.http.routers.arcadepipe-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.arcadepipe-web.priority=1"
+      # rate-limit@file volontairement absent (retiré le 2026-09-17, contrairement à
+      # arcadepipe-api) : ce routeur sert une quarantaine de fichiers statiques par page ;
+      # un second onglet ou une IP partagée dépassait le burst (40), d'où des 429 sur les
+      # .xm et une musique muette (repo arcadepipe, docs/audio-saga.md, round 3).
+      # Pour le réactiver : un middleware dédié aux statiques, burst >= 100, testé en
+      # rechargeant la page plusieurs fois — jamais rate-limit@file tel quel.
+      - "traefik.http.routers.arcadepipe-web.middlewares=secure-headers@file"
+      - "traefik.http.services.arcadepipe-web.loadbalancer.server.port=80"
+      # Lu par le générateur du portail (voir portal/) — sans rapport avec
+      # le routage Traefik lui-même.
+      - "pazpop.portal.enable=true"
+      - "pazpop.portal.name=ArcadePipe"
+      - "pazpop.portal.url=https://arcadepipe.pazpop.net"
+
+networks:
+  traefik-public:
+    name: traefik-public
+    external: true
+
+volumes:
+  # Nom explicite : sans ça, Compose préfixe par le nom du projet (le nom du
+  # dossier de déploiement, ~/arcadepipe -> "arcadepipe_backend_data") — un
+  # script de backup qui référence "backend_data" en dur échouerait tel
+  # quel, ou pire, verrait un volume vide fraîchement créé sans backuper
+  # rien du tout. Trouvé en préparant backup/ (voir ce dossier).
+  backend_data:
+    name: backend_data

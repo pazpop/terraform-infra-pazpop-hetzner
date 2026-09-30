@@ -1,0 +1,6 @@
+# Copier en terraform.tfvars (gitignoré) et renseigner les vraies valeurs.
+
+hcloud_token = "CHANGE_ME"  # console.hetzner.cloud > Security > API Tokens (Read & Write)
+
+# IP autorisée en SSH — trouver la sienne : curl -4 icanhazip.com
+ssh_source_cidrs = ["CHANGE_ME/32"]

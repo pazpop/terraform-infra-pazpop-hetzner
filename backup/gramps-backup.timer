@@ -1,0 +1,11 @@
+[Unit]
+Description=Déclenche gramps-backup.service tous les jours à 3h30
+
+[Timer]
+# 03h30 : après le backup arcadepipe (03h00), avant le reboot automatique (04h00).
+OnCalendar=*-*-* 03:30:00
+# Rattrape un run manqué (VPS éteinte ou en reboot à l'heure prévue).
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+# Copier en config.cfg (gitignoré) à côté de ce fichier. Monté en lecture seule dans
+# /app/config/config.cfg. Syntaxe Python, clés SANS le préfixe GRAMPSWEB_.
+#
+# Tout ce qui est non secret est déjà dans docker-compose.yml (environment:, qui prime
+# sur ce fichier). Ici : uniquement les secrets, pour qu'ils n'apparaissent jamais dans
+# la config Docker du conteneur (lisible via docker-socket-proxy).
+#
+# Vide = valide : Gramps Web fonctionne sans courriel (pas de réinitialisation de mot
+# de passe par e-mail, on la fait alors en ligne de commande, voir README.md).
+
+# EMAIL_HOST = "smtp.example.com"
+# EMAIL_PORT = 465
+# EMAIL_USE_SSL = True
+# EMAIL_HOST_USER = "arbre@pazpop.net"
+# EMAIL_HOST_PASSWORD = "..."
+# DEFAULT_FROM_EMAIL = "arbre@pazpop.net"

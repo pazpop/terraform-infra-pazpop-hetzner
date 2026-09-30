@@ -1,0 +1,148 @@
+# Gramps Web (arbre généalogique), derrière Traefik.
+#
+# Données PERSONNELLES (personnes vivantes) : jamais sur le portail, inscription
+# fermée, et non exposé tant que GRAMPS_EXPOSE n'est pas à true (voir README.md,
+# « Premier démarrage »).
+#
+# Variables lues dans .env (gitignoré, voir .env.example) : GRAMPS_DOMAIN,
+# GRAMPS_EXPOSE, GRAMPS_TREE. Aucun secret en `environment:` : la clé Flask est
+# générée par l'image dans le volume gramps_secret, et un éventuel mot de passe
+# SMTP va dans config.cfg (fichier monté, gitignoré). Rappel de
+# docker/traefik/README.md : les `environment:` d'un conteneur exposé à Traefik
+# sont lisibles via docker-socket-proxy.
+
+# Logs Docker plafonnés (10 Mo x 3 par conteneur) : le driver par défaut accumule à l'infini
+# et peut remplir le disque de la VPS.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Commun à l'API web et au worker Celery : même image, mêmes volumes, même config.
+x-gramps: &gramps
+  # Version épinglée (jamais :latest) : une mise à jour de Gramps Web peut migrer la
+  # base ; elle doit passer par une PR Dependabot relue, puis `./deploy.sh gramps`.
+  image: ghcr.io/gramps-project/grampsweb:26.9.1
+  restart: unless-stopped
+  logging: *default-logging
+  security_opt:
+    - no-new-privileges:true
+  environment:
+    GRAMPSWEB_TREE: ${GRAMPS_TREE:?GRAMPS_TREE manquant dans .env}
+    # Figé après le premier démarrage (README.md) : plus robuste qu'un nom, qui peut changer.
+    GRAMPSWEB_TREE_ID: ${GRAMPS_TREE_ID:-}
+    GRAMPSWEB_BASE_URL: https://${GRAMPS_DOMAIN:?GRAMPS_DOMAIN manquant dans .env}
+    GRAMPSWEB_REGISTRATION_DISABLED: "true"
+    GRAMPSWEB_DISABLE_TELEMETRY: "true"
+    GRAMPSWEB_CELERY_CONFIG__broker_url: redis://gramps-redis:6379/0
+    GRAMPSWEB_CELERY_CONFIG__result_backend: redis://gramps-redis:6379/0
+    GRAMPSWEB_RATELIMIT_STORAGE_URI: redis://gramps-redis:6379/1
+    # L'image lance 8 workers par défaut : trop pour une cx23 (4 Go) partagée avec arcadepipe.
+    GUNICORN_NUM_WORKERS: "2"
+    # Imports GEDCOM et exports longs : laisse le temps au worker plutôt que de couper à 120 s.
+    GUNICORN_TIMEOUT: "300"
+  volumes:
+    - ./config.cfg:/app/config/config.cfg:ro
+    - gramps_users:/app/users
+    - gramps_index:/app/indexdir
+    - gramps_thumb_cache:/app/thumbnail_cache
+    - gramps_cache:/app/cache
+    - gramps_secret:/app/secret
+    - gramps_db:/root/.gramps/grampsdb
+    - gramps_media:/app/media
+    - gramps_tmp:/tmp
+
+services:
+  grampsweb:
+    <<: *gramps
+    depends_on:
+      - gramps-redis
+    networks:
+      - traefik-public
+      - gramps-internal
+    mem_limit: 1536m
+    cpus: 1.0
+    labels:
+      # false tant que le compte propriétaire n'a pas été créé en ligne de commande :
+      # sinon le premier visiteur verrait l'assistant de premier démarrage et pourrait
+      # s'approprier l'instance. Voir README.md.
+      - "traefik.enable=${GRAMPS_EXPOSE:-false}"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.gramps.rule=Host(`${GRAMPS_DOMAIN}`)"
+      - "traefik.http.routers.gramps.entrypoints=websecure"
+      - "traefik.http.routers.gramps.tls.certresolver=letsencrypt"
+      # Middlewares dédiés (dynamic/middlewares.yml) : la CSP partagée de secure-headers
+      # bloquerait les tuiles de carte, et rate-limit (burst 40) les vignettes.
+      - "traefik.http.routers.gramps.middlewares=gramps-rate-limit@file,gramps-headers@file"
+      - "traefik.http.services.gramps.loadbalancer.server.port=5000"
+      # Routeur dédié au login : la limite interne de Gramps Web (1/s sur /api/token/)
+      # voit toutes les requêtes venir de Traefik, donc un seul compteur pour tout le
+      # monde. Ici, Traefik limite par IP réelle du client (priorité > routeur principal).
+      - "traefik.http.routers.gramps-login.rule=Host(`${GRAMPS_DOMAIN}`) && PathPrefix(`/api/token`)"
+      - "traefik.http.routers.gramps-login.entrypoints=websecure"
+      - "traefik.http.routers.gramps-login.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.gramps-login.priority=100"
+      - "traefik.http.routers.gramps-login.middlewares=gramps-login-limit@file,gramps-headers@file"
+      - "traefik.http.routers.gramps-login.service=gramps"
+      # Volontairement AUCUN label pazpop.portal.* : l'arbre n'apparaît pas sur game.pazpop.net.
+
+  gramps-celery:
+    <<: *gramps
+    command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=1
+    depends_on:
+      - grampsweb
+      - gramps-redis
+    networks:
+      - gramps-internal
+    mem_limit: 1024m
+    cpus: 0.5
+
+  # File de tâches Celery et stockage du rate-limit : rien à conserver, donc pas de volume.
+  gramps-redis:
+    image: docker.io/valkey/valkey:8-alpine
+    command: valkey-server --save "" --appendonly no --maxmemory 48mb --maxmemory-policy noeviction
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - gramps-internal
+    read_only: true
+    # UID/GID de l'utilisateur "valkey" de l'image (`docker run ... id valkey`) : lancé
+    # directement en non-root, l'entrypoint saute son étape setpriv (qui a besoin de
+    # CAP_SETUID/CAP_SETGID, incompatibles avec cap_drop: ALL) — sinon le conteneur
+    # boucle en échec ("setpriv: setresuid failed: Operation not permitted").
+    user: "999:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    cpus: 0.1
+
+networks:
+  traefik-public:
+    name: traefik-public
+    external: true
+  # Valkey et le worker n'ont rien à faire sur traefik-public.
+  gramps-internal:
+    name: gramps-internal
+
+# Noms explicites (même leçon que backend_data d'arcadepipe) : sans eux, Compose
+# préfixe par le nom du dossier, et backup-gramps.sh viserait des volumes vides.
+volumes:
+  gramps_users:
+    name: gramps_users
+  gramps_index:
+    name: gramps_index
+  gramps_thumb_cache:
+    name: gramps_thumb_cache
+  gramps_cache:
+    name: gramps_cache
+  gramps_secret:
+    name: gramps_secret
+  gramps_db:
+    name: gramps_db
+  gramps_media:
+    name: gramps_media
+  gramps_tmp:
+    name: gramps_tmp

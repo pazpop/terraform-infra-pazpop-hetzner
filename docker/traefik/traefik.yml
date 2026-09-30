@@ -1,0 +1,44 @@
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+      # Supprime silencieusement les en-têtes dont le nom "alias" un autre
+      # en-tête (ex: X_Auth_User / X.Auth.User pour X-Auth-User) — mitigation
+      # recommandée par Traefik contre le spoofing d'en-têtes, voir
+      # doc.traefik.io/traefik/security/header-aliases/
+      aliasHeadersStrategy: delete
+  websecure:
+    address: ":443"
+    http:
+      aliasHeadersStrategy: delete
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      # Email fourni via la variable d'environnement TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL
+      # (voir docker-compose.yml + .env) plutôt qu'en clair ici.
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  docker:
+    endpoint: tcp://docker-socket-proxy:2375
+    exposedByDefault: false
+    network: traefik-public
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+ping: {}
+
+api:
+  dashboard: false
+  insecure: false
+
+log:
+  level: INFO

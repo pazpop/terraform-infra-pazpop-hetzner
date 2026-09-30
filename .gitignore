@@ -1,0 +1,13 @@
+# OpenTofu/Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log
+crash.*.log
+
+# Secrets par service (ex: traefik/.env)
+.env
+
+# Secrets de Gramps Web (SMTP) : monté dans le conteneur, jamais committé
+docker/gramps/config.cfg

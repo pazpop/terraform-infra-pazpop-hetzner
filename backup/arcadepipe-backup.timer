@@ -1,0 +1,12 @@
+[Unit]
+Description=Déclenche arcadepipe-backup.service tous les jours à 3h
+
+[Timer]
+# 03h00 : le reboot automatique post-patch (unattended-upgrades) est à 04h00, un backup
+# ne doit pas être interrompu par lui.
+OnCalendar=*-*-* 03:00:00
+# Rattrape un run manqué (VPS éteinte ou en reboot à l'heure prévue).
+Persistent=true
+
+[Install]
+WantedBy=timers.target

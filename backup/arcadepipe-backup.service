@@ -1,0 +1,12 @@
+[Unit]
+Description=Backup quotidien de la DB SQLite arcadepipe
+# Après le backend : son volume doit exister (le backup lit le volume, pas le conteneur).
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# User=deploy (groupe docker, cf. cloud-init.yaml) : moindre privilège, pas de sudo.
+User=deploy
+WorkingDirectory=/home/deploy/backup
+ExecStart=/home/deploy/backup/backup-arcadepipe-db.sh

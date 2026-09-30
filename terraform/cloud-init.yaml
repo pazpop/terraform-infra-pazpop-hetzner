@@ -1,0 +1,66 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+# Compte standard pour toute connexion SSH — root n'est jamais accessible en
+# SSH (voir sshd_config.d/99-hardening.conf ci-dessous). NOPASSWD car c'est le
+# seul compte de ce VPS, protégé uniquement par la clé SSH (pas de mot de
+# passe défini pour cet utilisateur de toute façon).
+users:
+  - default
+  - name: deploy
+    groups: sudo
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+
+ssh_pwauth: false
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-hardening.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+  - path: /etc/systemd/system/ssh.socket.d/override.conf
+    content: |
+      [Socket]
+      ListenStream=
+      ListenStream=0.0.0.0:2222
+      ListenStream=[::]:2222
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime  = 1h
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+      port    = 2222
+
+      [recidive]
+      enabled   = true
+      logpath   = /var/log/fail2ban.log
+      banaction = %(banaction_allports)s
+      bantime   = 1w
+      findtime  = 1d
+      maxretry  = 3
+  - path: /etc/apt/apt.conf.d/52reboot-arcadepipe.conf
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "true";
+      Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
+# Reboot en dernière étape : applique un éventuel nouveau noyau et garantit un état propre
+# avant tout déploiement (Docker, sshd et fail2ban redémarrent seuls).
+# Pas le module cloud-init `power_state` : son garde-fou interne s'est déclenché à tort
+# et a annulé le reboot en silence. Un `reboot` en fin de runcmd n'a pas ce défaut.
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - usermod -aG docker deploy
+  - apt-get install -y fail2ban
+  - systemctl enable --now fail2ban
+  - systemctl daemon-reload
+  - systemctl restart ssh.socket
+  - reboot

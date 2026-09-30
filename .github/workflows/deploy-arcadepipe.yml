@@ -1,0 +1,56 @@
+name: Deploy ArcadePipe
+
+# Déclenché par le CI d'arcadepipe (repo public) une fois l'image poussée sur GHCR
+# (étape « Notifier terraform-infra-pazpop-hetzner » de son deploy.yml).
+# `workflow_dispatch` : redéploiement manuel depuis l'onglet Actions (rollback, nouvel essai).
+on:
+  repository_dispatch:
+    types: [arcadepipe-published]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Épinglé par SHA (un tag comme "v1" peut être déplacé) ; Dependabot ouvre les PR de mise à jour.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # docker-compose.yml n'est pas dans les images : sans cette étape, ses changements
+      # n'atteindraient jamais la VPS.
+      #
+      # `fingerprint:` : sans lui, ces actions acceptent n'importe quelle clé d'hôte (pas
+      # de protection MITM). Ces actions négocient une clé ECDSA (bibliothèque SSH de Go),
+      # pas ED25519 comme OpenSSH : prendre la ligne "(ECDSA)" de
+      #   ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -
+      # et la mettre dans le secret DEPLOY_SSH_FINGERPRINT. À régénérer si le VPS est
+      # recréé : le workflow échoue sinon, volontairement.
+      - name: Sync docker-compose.yml
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: 2222
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
+          source: docker/arcadepipe/docker-compose.yml
+          target: ~/arcadepipe
+          strip_components: 2
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: 2222
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
+          # `set -e` : sans lui, un `pull` en échec n'empêche pas `up -d`, et le job
+          # rapporte « succès » en relançant l'ANCIENNE image en cache.
+          script: |
+            set -e
+            cd ~/arcadepipe
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
