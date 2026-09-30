@@ -32,15 +32,15 @@ http:
         customFrameOptionsValue: "SAMEORIGIN"
         referrerPolicy: "strict-origin-when-cross-origin"
         # CSP commune à tous les sites derrière Traefik ; justification de chaque
-        # exception ('unsafe-eval', 'unsafe-inline', Google Analytics) : docs/securite.md.
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-eval' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+        # exception ('unsafe-inline', Google Analytics) : docs/securite.md.
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
         customResponseHeaders:
           Permissions-Policy: "camera=(), microphone=(), geolocation=()"
           Server: ""
 
     # --- Gramps Web (docker/gramps/) -------------------------------------------
     # Mêmes en-têtes que secure-headers, SANS sa CSP : celle-ci est taillée pour
-    # arcadepipe (Google Analytics, 'unsafe-eval') et bloquerait les tuiles de
+    # arcadepipe (Google Analytics) et bloquerait les tuiles de
     # carte de Gramps Web (img-src limité à 'self'). Une CSP propre à Gramps reste
     # à écrire en observant la console du navigateur (voir docker/gramps/README.md,
     # Roadmap) — pas de valeur devinée ici.
