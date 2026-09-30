@@ -70,5 +70,4 @@ else
   exit 1
 fi
 
-echo "[test] 6/6 — Nettoyage (voir aussi le trap EXIT, filet de sécurité en cas d'échec plus haut)."
-# La suppression est faite par cleanup() (trap EXIT ci-dessus).
+echo "[test] 6/6 — Nettoyage (trap EXIT)."

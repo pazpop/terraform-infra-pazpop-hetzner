@@ -11,7 +11,7 @@ sequenceDiagram
     participant VPS
 
     Dev->>AP: git push main
-    AP->>AP: lint (ruff, eslint) + pip-audit
+    AP->>AP: lint (ruff, eslint), pip-audit, tests (pytest, node --test)
     AP->>GHCR: build + push images<br/>(:latest, :sha)
     AP->>TI: repository_dispatch<br/>event "arcadepipe-published"
     TI->>VPS: scp docker/arcadepipe/docker-compose.yml
