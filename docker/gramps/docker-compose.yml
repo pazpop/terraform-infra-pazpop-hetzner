@@ -100,7 +100,7 @@ services:
 
   # File de tâches Celery et stockage du rate-limit : rien à conserver, donc pas de volume.
   gramps-redis:
-    image: docker.io/valkey/valkey:8-alpine
+    image: docker.io/valkey/valkey:9-alpine
     command: valkey-server --save "" --appendonly no --maxmemory 48mb --maxmemory-policy noeviction
     restart: unless-stopped
     logging: *default-logging
