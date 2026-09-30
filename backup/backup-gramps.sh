@@ -83,4 +83,4 @@ tar -C "$WORK" -czf "$DAILY_DIR/$ARCHIVE" .
 chmod 600 "$DAILY_DIR/$ARCHIVE"
 echo "[backup-gramps] OK : $DAILY_DIR/$ARCHIVE ($(du -h "$DAILY_DIR/$ARCHIVE" | cut -f1))"
 
-rotation "$DAILY_DIR/$ARCHIVE"
+rotation "$DAILY_DIR/$ARCHIVE" "[backup-gramps]"

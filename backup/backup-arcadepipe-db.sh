@@ -50,4 +50,4 @@ fi
 
 echo "[backup] OK : $BACKUP_PATH ($(du -h "$BACKUP_PATH" | cut -f1), integrity_check=ok)"
 
-rotation "$BACKUP_PATH"
+rotation "$BACKUP_PATH" "[backup]"
