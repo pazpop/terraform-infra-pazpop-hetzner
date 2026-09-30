@@ -16,7 +16,10 @@ updates:
   # la doc le 2026-09-29 — la dérive de version de grampsweb, corrigée le
   # même jour, n'aurait jamais été signalée). Un répertoire par stack, pas
   # de portée "/" : chaque image y est déjà relue avant d'être épinglée.
-  - package-ecosystem: "docker"
+  # docker/gramps n'a pas de Dockerfile, seulement un docker-compose.yml :
+  # l'écosystème "docker" n'y trouve rien et le job échoue ; il faut
+  # l'écosystème "docker-compose", qui lit les lignes image:.
+  - package-ecosystem: "docker-compose"
     directory: "/docker/gramps"
     schedule:
       interval: "weekly"
