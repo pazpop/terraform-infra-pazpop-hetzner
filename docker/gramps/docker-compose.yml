@@ -23,7 +23,7 @@ x-logging: &default-logging
 x-gramps: &gramps
   # Version épinglée (jamais :latest) : une mise à jour de Gramps Web peut migrer la
   # base ; elle doit passer par une PR Dependabot relue, puis `./deploy.sh gramps`.
-  image: ghcr.io/gramps-project/grampsweb:26.9.1
+  image: ghcr.io/gramps-project/grampsweb:26.10.0
   restart: unless-stopped
   logging: *default-logging
   security_opt:
