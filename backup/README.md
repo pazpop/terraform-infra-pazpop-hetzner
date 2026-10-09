@@ -52,7 +52,7 @@ ssh arcadepipe-vps
 Le script fait, dans l'ordre :
 
 1. **Vérifie l'intégrité du backup candidat** (`PRAGMA integrity_check`) avant de toucher à quoi que ce soit : s'il est corrompu, rien n'est modifié.
-2. **Arrête le conteneur backend** (`docker compose stop backend`) : le site reste en ligne, seules les routes `/api/*` échouent pendant la restauration.
+2. **Arrête le conteneur backend** (`docker compose stop backend`) : le site reste en ligne, seules les routes `/api/*` échouent pendant la restauration. Il est relancé à la sortie du script, même si une étape échoue. **La base en place est d'abord copiée** dans `/var/backups/arcadepipe/avant-restauration/` : si le mauvais fichier a été restauré, relancer le script sur cette copie annule l'opération.
 3. **Supprime les fichiers `-wal`/`-shm` de l'ANCIENNE base.** Sinon SQLite rejouerait, au prochain démarrage, le journal de l'ancienne base sur la nouvelle : corruption silencieuse. Le fichier produit par `.backup` est autonome ; SQLite recrée un `-wal` propre au premier accès.
 4. **Copie le backup validé** à la place de l'ancienne base, et le rend au propriétaire du backend (`chown 1000:1000`, l'utilisateur `appuser` ; le conteneur jetable écrit en root).
 5. **Redémarre le backend** et vérifie que `/api/health` répond.
@@ -69,7 +69,7 @@ cd ~/arcadepipe && docker compose stop backend
 
 # 3. Purge des -wal/-shm de l'ancienne base (ÉTAPE CRITIQUE, voir ci-dessus)
 docker run --rm -v backend_data:/data backup-tool \
-  sh -c "rm -f /data/arcadepipe.db-wal /data/arcadepipe.db-shm"
+  rm -f /data/arcadepipe.db-wal /data/arcadepipe.db-shm
 
 # 4. Copie du backup
 docker run --rm -v /var/backups/arcadepipe/daily:/backup:ro -v backend_data:/data backup-tool \
@@ -86,7 +86,7 @@ curl -sS https://arcadepipe.pazpop.net/api/health
 ./test-backup-restore.sh
 ```
 
-Contre la vraie API en prod : insère un score de test unique (nom horodaté) → backup → suppression en direct → restauration → vérifie le retour → nettoie (garanti même en cas d'échec, via un `trap` sur la sortie du script). Le fichier de backup produit est un backup légitime : la rétention normale s'en charge.
+Contre la vraie API en prod : insère un score de test unique (nom horodaté) → backup → suppression en direct → restauration → vérifie le retour → nettoie (garanti même en cas d'échec, via un `trap` sur la sortie du script). À lancer à une heure creuse : un vrai score envoyé entre le backup et la restauration, quelques secondes, serait perdu. Le backup produit compte dans la rétention (7 quotidiens) : il chasse le plus ancien.
 
 ## Limites connues
 

@@ -14,6 +14,8 @@ fi
 BACKUP_SOURCE="$1"
 VOLUME="backend_data"
 DB_NAME="arcadepipe.db"
+# Copie de la base en place, prise juste avant de l'écraser (une seule, remplacée à chaque restauration).
+SAFETY_DIR="/var/backups/arcadepipe/avant-restauration"
 
 if [ ! -f "$BACKUP_SOURCE" ]; then
   echo "[restore] ERREUR : fichier introuvable : $BACKUP_SOURCE" >&2
@@ -35,9 +37,22 @@ fi
 echo "[restore] OK : backup valide."
 
 # 2/5 — Arrêter le backend avant d'écrire dans le volume (le site reste en
-# ligne, seules les routes /api/* échouent pendant la restauration).
+# ligne, seules les routes /api/* échouent pendant la restauration). Il est
+# relancé à la sortie du script, même si une étape échoue.
 echo "[restore] 2/5 — Arrêt du conteneur backend..."
 (cd ~/arcadepipe && docker compose stop backend)
+trap '(cd ~/arcadepipe && docker compose start backend)' EXIT
+
+# Copie de la base en place avant de l'écraser : une erreur de fichier se
+# rattrape en restaurant cette copie. Une base en place illisible n'empêche pas
+# la restauration (c'est peut-être la raison de la restaurer).
+mkdir -p "$SAFETY_DIR"
+if docker run --rm -v "${VOLUME}:/data" -v "${SAFETY_DIR}:/safety" "$IMAGE" \
+    sqlite3 "/data/${DB_NAME}" ".backup '/safety/${DB_NAME}'"; then
+  echo "[restore] Base en place copiée dans ${SAFETY_DIR}/${DB_NAME}"
+else
+  echo "[restore] ATTENTION : base en place illisible, aucune copie avant restauration." >&2
+fi
 
 # 3/5 — Purger les -wal/-shm de l'ANCIENNE base avant la copie. Piège classique
 # en mode WAL : sinon SQLite rejouerait le journal de l'ancienne base sur la
@@ -45,14 +60,16 @@ echo "[restore] 2/5 — Arrêt du conteneur backend..."
 # SQLite recrée un -wal propre au premier accès.
 echo "[restore] 3/5 — Nettoyage des fichiers -wal/-shm de l'ancienne base..."
 docker run --rm -v "${VOLUME}:/data" "$IMAGE" \
-  sh -c "rm -f /data/${DB_NAME}-wal /data/${DB_NAME}-shm"
+  rm -f "/data/${DB_NAME}-wal" "/data/${DB_NAME}-shm"
 
 # 4/5 — Copier le backup dans le volume. `chown 1000:1000` : le conteneur jetable
 # est root, mais le backend tourne en "appuser" (uid 1000) ; sans chown la base
 # serait en lecture seule pour lui ("attempt to write a readonly database").
+# Les chemins sont passés en arguments ($1, $2), jamais collés dans la commande :
+# un nom de fichier avec une espace ne la casse pas.
 echo "[restore] 4/5 — Copie du backup dans le volume..."
 docker run --rm -v "${BACKUP_DIR}:/backup:ro" -v "${VOLUME}:/data" "$IMAGE" \
-  sh -c "cp /backup/${BACKUP_BASENAME} /data/${DB_NAME} && chown 1000:1000 /data/${DB_NAME}"
+  sh -c 'cp "$1" "$2" && chown 1000:1000 "$2"' sh "/backup/${BACKUP_BASENAME}" "/data/${DB_NAME}"
 
 # 5/5 — Redémarrer le backend et vérifier que l'API répond.
 echo "[restore] 5/5 — Redémarrage du backend..."

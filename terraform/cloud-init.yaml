@@ -46,8 +46,12 @@ write_files:
       bantime   = 1w
       findtime  = 1d
       maxretry  = 3
+  # Docker vient du dépôt de Docker, pas d'Ubuntu : sans cette ligne,
+  # unattended-upgrades ne le mettrait jamais à jour. Une mise à jour de Docker
+  # redémarre les conteneurs (quelques secondes d'interruption).
   - path: /etc/apt/apt.conf.d/52reboot-arcadepipe.conf
     content: |
+      Unattended-Upgrade::Origins-Pattern:: "origin=Docker";
       Unattended-Upgrade::Automatic-Reboot "true";
       Unattended-Upgrade::Automatic-Reboot-Time "04:00";
 
@@ -59,7 +63,7 @@ runcmd:
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker
   - usermod -aG docker deploy
-  - apt-get install -y fail2ban
+  - apt-get install -y fail2ban unattended-upgrades
   - systemctl enable --now fail2ban
   - systemctl daemon-reload
   - systemctl restart ssh.socket

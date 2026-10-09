@@ -44,6 +44,10 @@ docker run --rm \
   -v gramps_media:/src/media:ro \
   -v "$WORK:/out" \
   "$IMAGE" sh -euc '
+    # Le conteneur écrit en root : la copie est rendue à "deploy" à la sortie,
+    # même après un échec. Sinon le nettoyage (trap rm -rf, plus haut) échoue
+    # et une copie en clair reste sur le disque.
+    trap "chown -R $HOST_UID:$HOST_GID /out" EXIT
     mkdir -p /out/db /out/users
     cd /src/db
     for tree in */; do
@@ -67,9 +71,6 @@ docker run --rm \
     [ "$res" = "ok" ] || { echo "integrity_check KO sur users.sqlite : $res" >&2; exit 1; }
     cp -a /src/secret /out/secret
     tar -C /src -cf /out/media.tar media
-    # Le conteneur écrit en root : rendre la copie à "deploy", sinon le nettoyage
-    # (trap rm -rf) échoue et une copie en clair reste sur le disque.
-    chown -R "$HOST_UID:$HOST_GID" /out
   '
 
 # Au moins un arbre copié : un volume gramps_db vide (stack jamais initialisée, ou nom de

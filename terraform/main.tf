@@ -48,9 +48,8 @@ resource "hcloud_primary_ip" "arcadepipe_ipv4" {
 }
 
 // Pas de prevent_destroy ici : détruire/recréer le serveur doit rester sans friction
-// (reprise après sinistre ; cloud-init ne s'applique qu'à la création). Vérifié : une
-// recréation complète est entièrement reconfigurée par cloud-init. Contrairement à l'IP,
-// recréer le serveur ne casse aucun DNS.
+// (reprise après sinistre). cloud-init ne s'applique qu'à la création, et reconfigure
+// alors le serveur en entier. Contrairement à l'IP, recréer le serveur ne casse aucun DNS.
 resource "hcloud_server" "arcadepipe" {
   name         = var.server_name
   server_type  = var.server_type
@@ -67,10 +66,12 @@ resource "hcloud_server" "arcadepipe" {
     ssh_public_key = trimspace(file(pathexpand(var.ssh_public_key_path)))
   })
 
-  // La clé Hetzner n'est injectée qu'au moment de la création du serveur ; la
-  // faire tourner (ex: recréée après une suppression accidentelle dans la
-  // console) ne doit jamais déclencher un remplacement du VPS existant.
+  // La clé Hetzner et cloud-init (user_data) ne servent qu'à la création du
+  // serveur. Sans ces deux exceptions, changer la clé ou modifier cloud-init.yaml
+  // planifierait la destruction du VPS, donc de ses volumes Docker et de ses
+  // sauvegardes locales. Pour le recréer volontairement :
+  //   tofu apply -replace=hcloud_server.arcadepipe
   lifecycle {
-    ignore_changes = [ssh_keys]
+    ignore_changes = [ssh_keys, user_data]
   }
 }

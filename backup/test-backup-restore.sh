@@ -11,8 +11,10 @@ SSH_HOST="arcadepipe-vps"   # alias défini dans ~/.ssh/config
 REMOTE_BACKUP_SCRIPT="~/backup/backup-arcadepipe-db.sh"
 REMOTE_RESTORE_SCRIPT="~/backup/restore-arcadepipe-db.sh"
 
-# Nom unique par run : le nettoyage ne supprime que ce nom précis.
-TEST_PLAYER="E2ETEST_$(date +%s)"
+# Nom unique par run (le nettoyage ne supprime que ce nom précis), au format
+# qu'accepte l'API : 8 caractères au plus, majuscules et chiffres. "T" suivi des
+# 7 derniers chiffres de l'heure Unix.
+TEST_PLAYER="T$(date +%s | tail -c 8)"
 
 # Supprime le score de test sur la VRAIE base (étape 3 et nettoyage). Via Python :
 # l'image du backend n'a pas le binaire sqlite3.

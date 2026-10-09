@@ -5,7 +5,7 @@
 - **SSH** sur le port **2222** (moins de bruit de scans), root interdit (`PermitRootLogin no`), mot de passe désactivé : seule la clé, sur le compte `deploy` (sudo NOPASSWD, groupe `docker`).
 - **Ouvert à tout Internet** par défaut (`ssh_source_cidrs`, voir `terraform/variables.tf`) : le déploiement automatique vient d'IP GitHub dynamiques. La vraie protection est **fail2ban** : jail `sshd` (5 échecs, ban 1 h) et jail `recidive` (3 bans en 24 h, ban 1 semaine, tous ports).
 - **Firewall Hetzner** : seuls 2222, 80 et 443.
-- **Mises à jour** automatiques (`unattended-upgrades`), reboot à 4 h si nécessaire ; VPS rebooté en fin de provisioning. `cloud-init.yaml` décrit l'état désiré pour une recréation ; il n'est pas rejoué sur le serveur actuel.
+- **Mises à jour** automatiques (`unattended-upgrades`) du système et de Docker, reboot à 4 h si nécessaire ; VPS rebooté en fin de provisioning. `cloud-init.yaml` décrit l'état désiré pour une recréation ; il n'est pas rejoué sur le serveur actuel, et le modifier ne recrée pas le VPS (`ignore_changes`, `terraform/main.tf`) : un changement s'applique aussi à la main sur le serveur en place.
 - **Token Hetzner** `sensitive`, jamais commité. **IP primaire** détachée du serveur (`auto_delete = false`, `prevent_destroy = true`) : recréer le VPS ne change jamais l'IP.
 - **Actions GitHub** épinglées par SHA, mises à jour par [Dependabot](../.github/dependabot.yml).
 - **Docker socket** : Traefik et le portail n'y accèdent jamais directement, seulement via `docker-socket-proxy` (lecture seule). Voir `docker/traefik/README.md`.
