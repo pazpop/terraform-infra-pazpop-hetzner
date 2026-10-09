@@ -10,7 +10,7 @@ services:
   # Routage géré par Traefik via labels — ni backend ni frontend ne
   # publient de port ; seule Traefik est exposée sur 80/443.
   #
-  # Pas de "build:" ici, contrairement à traefik/portal : les images sont
+  # Pas de "build:" ici, contrairement à portal : les images sont
   # publiées par le CI du repo applicatif (github.com/pazpop/arcadepipe,
   # public) sur GHCR à chaque push — ce repo-ci se contente de les tirer et
   # de les router. `docker compose pull` (voir deploy.sh et le workflow

@@ -127,7 +127,7 @@ networks:
   gramps-internal:
     name: gramps-internal
 
-# Noms explicites (même leçon que backend_data d'arcadepipe) : sans eux, Compose
+# Noms explicites : sans eux, Compose
 # préfixe par le nom du dossier, et backup-gramps.sh viserait des volumes vides.
 volumes:
   gramps_users:

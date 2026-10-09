@@ -25,11 +25,13 @@ echo "[backup] Démarrage $(date -Iseconds)"
 # un état à cheval sur le -wal.
 # Pas de montage ":ro" : sqlite3 échoue alors avec "unable to open database file",
 # même en lecture (il doit pouvoir créer ses fichiers de verrou).
+# -readonly : si la base manque (volume vide), sqlite3 échoue au lieu d'en créer
+# une vide, qui donnerait un backup « réussi » sans aucun score.
 docker run --rm \
   -v "${VOLUME}:/source" \
   -v "${DAILY_DIR}:/backup" \
   "$IMAGE" \
-  sqlite3 "/source/${DB_NAME}" ".backup '/backup/${BACKUP_FILE}'"
+  sqlite3 -readonly "/source/${DB_NAME}" ".backup '/backup/${BACKUP_FILE}'"
 
 BACKUP_PATH="${DAILY_DIR}/${BACKUP_FILE}"
 

@@ -39,8 +39,11 @@ write_files:
       enabled = true
       port    = 2222
 
+      # backend = auto : sur Ubuntu 24.04 le défaut est le journal systemd, où
+      # fail2ban n'écrit pas ses propres bans ; ce jail ne verrait rien.
       [recidive]
       enabled   = true
+      backend   = auto
       logpath   = /var/log/fail2ban.log
       banaction = %(banaction_allports)s
       bantime   = 1w

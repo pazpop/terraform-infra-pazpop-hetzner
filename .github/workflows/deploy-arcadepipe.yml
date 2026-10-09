@@ -66,6 +66,8 @@ jobs:
           envs: TAG
           # `set -e` : sans lui, un `pull` en échec n'empêche pas `up -d`, et le job
           # rapporte « succès » en relançant l'ANCIENNE image en cache.
+          # `--wait` : le job échoue si un conteneur ne devient pas « healthy ».
+          # `--remove-orphans` : un service retiré du compose est arrêté.
           # Retour arrière : l'image :<sha> est retaguée :latest (le compose ne connaît que :latest) ;
           # le prochain déploiement normal retire à nouveau la vraie :latest.
           script: |
@@ -79,5 +81,5 @@ jobs:
                 docker tag "ghcr.io/pazpop/$img:$TAG" "ghcr.io/pazpop/$img:latest"
               done
             fi
-            docker compose up -d
+            docker compose up -d --wait --remove-orphans
             docker image prune -f

@@ -3,7 +3,7 @@
 ## Accès au VPS
 
 - **SSH** sur le port **2222** (moins de bruit de scans), root interdit (`PermitRootLogin no`), mot de passe désactivé : seule la clé, sur le compte `deploy` (sudo NOPASSWD, groupe `docker`).
-- **Ouvert à tout Internet** par défaut (`ssh_source_cidrs`, voir `terraform/variables.tf`) : le déploiement automatique vient d'IP GitHub dynamiques. La vraie protection est **fail2ban** : jail `sshd` (5 échecs, ban 1 h) et jail `recidive` (3 bans en 24 h, ban 1 semaine, tous ports).
+- **Ouvert à tout Internet** par défaut (`ssh_source_cidrs`, voir `terraform/variables.tf`) : le déploiement automatique vient d'IP GitHub dynamiques. La protection est l'accès par clé seule ; **fail2ban** réduit le bruit : jail `sshd` (5 échecs, ban 1 h) et jail `recidive` (3 bans en 24 h, ban 1 semaine, sur tous les ports de l'hôte ; pas 80 ni 443, que Docker relaie).
 - **Firewall Hetzner** : seuls 2222, 80 et 443.
 - **Mises à jour** automatiques (`unattended-upgrades`) du système et de Docker (`/etc/apt/apt.conf.d/53docker.conf` ; une mise à jour de Docker redémarre les conteneurs, quelques secondes d'interruption), reboot à 4 h si nécessaire ; VPS rebooté en fin de provisioning. `cloud-init.yaml` décrit l'état désiré pour une recréation ; il n'est pas rejoué sur le serveur actuel, et le modifier ne recrée pas le VPS (`ignore_changes`, `terraform/main.tf`) : un changement s'applique aussi à la main sur le serveur en place.
 - **Token Hetzner** `sensitive`, jamais commité. **IP primaire** détachée du serveur (`auto_delete = false`, `prevent_destroy = true`) : recréer le VPS ne change jamais l'IP.
@@ -13,7 +13,7 @@
 
 ## Traefik (`docker/traefik/dynamic/middlewares.yml`)
 
-- **CSP** sur `secure-headers`, pour tous les sites derrière Traefik. Aucun `'unsafe-eval'` ; `'unsafe-inline'` sur `style-src` : `<style>` du portail ; `googletagmanager.com` et `google-analytics.com` : Google Analytics, injecté après consentement du visiteur (jamais de script inline). Aucune violation de CSP constatée en navigation réelle. Si `www.google-analytics.com` est bloqué chez le visiteur, gtag bascule sur `www.google.com/g/collect`, non autorisé : erreurs console sans conséquence.
+- **CSP** sur `secure-headers`, pour tous les sites derrière Traefik. Aucun `'unsafe-eval'` ; `'unsafe-inline'` sur `style-src` : `<style>` du portail ; `data:` sur `img-src` : les drapeaux du bouton de langue d'arcadepipe, des images écrites dans son CSS ; `googletagmanager.com` et `google-analytics.com` : Google Analytics, injecté après consentement du visiteur (jamais de script inline). Après un changement de CSP, `npm run smoke` (dépôt arcadepipe, dossier `e2e/`) signale toute ressource bloquée. Si `www.google-analytics.com` est bloqué chez le visiteur, gtag bascule sur `www.google.com/g/collect`, non autorisé : erreurs console sans conséquence.
 - **Rate-limit** (`rate-limit`) : 20 req/s par IP (burst 40) sur `arcadepipe-api` et le portail. **Pas sur `arcadepipe-web`** (fichiers statiques) : une page charge une quarantaine de fichiers JS, donc un second onglet ou une IP partagée dépasserait le burst et la musique recevrait des 429.
 - **Taille des requêtes** (`api-body-limit`) : 10 Ko sur le corps envoyé au routeur `arcadepipe-api` uniquement. Jamais sur `arcadepipe-web` (musique de plusieurs Mo) ; seul `maxRequestBodyBytes` est posé, jamais `maxResponseBodyBytes`.
 

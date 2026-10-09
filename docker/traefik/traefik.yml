@@ -19,8 +19,7 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      # Email fourni via la variable d'environnement TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL
-      # (voir docker-compose.yml + .env) plutôt qu'en clair ici.
+      # Sans adresse de contact : Let's Encrypt n'en exige pas.
       storage: /letsencrypt/acme.json
       httpChallenge:
         entryPoint: web

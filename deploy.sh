@@ -63,9 +63,11 @@ echo "== Déploiement de '$STACK' sur $HOST $($DRY_RUN && echo '(dry-run — rie
 # traefik-public est partagé par toutes les stacks (external: true) : créé ici, idempotent.
 run ssh -n -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" "docker network create traefik-public 2>/dev/null || true"
 
+# L'archive locale est supprimée à la sortie, même si le transfert échoue : celle
+# de gramps contient ses secrets.
+trap 'rm -f "$TAR_PATH"' EXIT
 run tar -czf "$TAR_PATH" -C "$DOCKER_DIR" "$STACK"
 run scp -P "$SSH_PORT" -i "$SSH_KEY" "$TAR_PATH" "$SSH_USER@$HOST:~/${STACK}.tar.gz"
-$DRY_RUN || rm -f "$TAR_PATH"
 
 run ssh -n -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" "tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz"
 
@@ -95,8 +97,11 @@ else
 fi
 
 # pull avant up : arcadepipe n'a que des "image:" (GHCR) ; sans pull, `up --build`
-# réutiliserait l'image locale même périmée. Sans effet pour traefik/portal.
-run ssh -n -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" "cd ~/$STACK && docker compose pull && docker compose up -d --build"
+# réutiliserait l'image locale même périmée.
+# --force-recreate : sans lui, un conteneur dont seul un fichier monté a changé
+# (traefik.yml, config.cfg) n'est pas recréé et garde l'ancienne configuration.
+# --remove-orphans : un service retiré du compose est arrêté.
+run ssh -n -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" "cd ~/$STACK && docker compose pull && docker compose up -d --build --force-recreate --remove-orphans"
 
 # Garde :latest et :previous : `prune -f` (sans -a) ne supprime que les images sans tag.
 echo "-- Nettoyage des images orphelines --"

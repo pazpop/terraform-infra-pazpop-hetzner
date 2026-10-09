@@ -44,6 +44,16 @@ rclone sync "$BACKUP_DEST" remote:mon-bucket/arcadepipe
 
 ### Procédure automatisée (recommandée)
 
+`arcadepipe-vps` est un alias à déclarer une fois dans `~/.ssh/config` :
+
+```
+Host arcadepipe-vps
+    HostName <IP du VPS : tofu output -raw server_ip>
+    User deploy
+    Port 2222
+    IdentityFile ~/.ssh/arcadepipe_vps
+```
+
 ```bash
 ssh arcadepipe-vps
 ~/backup/restore-arcadepipe-db.sh /var/backups/arcadepipe/daily/arcadepipe_2026-09-17_0300.db
@@ -52,7 +62,7 @@ ssh arcadepipe-vps
 Le script fait, dans l'ordre :
 
 1. **Vérifie l'intégrité du backup candidat** (`PRAGMA integrity_check`) avant de toucher à quoi que ce soit : s'il est corrompu, rien n'est modifié.
-2. **Arrête le conteneur backend** (`docker compose stop backend`) : le site reste en ligne, seules les routes `/api/*` échouent pendant la restauration. Il est relancé à la sortie du script, même si une étape échoue. **La base en place est d'abord copiée** dans `/var/backups/arcadepipe/avant-restauration/` : si le mauvais fichier a été restauré, relancer le script sur cette copie annule l'opération.
+2. **Arrête le conteneur backend** (`docker compose stop backend`) : le site reste en ligne, seules les routes `/api/*` échouent pendant la restauration. Il est relancé à la sortie du script, même si une étape échoue. **La base en place est d'abord copiée** dans `/var/backups/arcadepipe/avant-restauration/arcadepipe.db` : si le mauvais fichier a été restauré, relancer le script sur cette copie annule l'opération (le script ne la remplace pas quand c'est elle qu'il restaure).
 3. **Supprime les fichiers `-wal`/`-shm` de l'ANCIENNE base.** Sinon SQLite rejouerait, au prochain démarrage, le journal de l'ancienne base sur la nouvelle : corruption silencieuse. Le fichier produit par `.backup` est autonome ; SQLite recrée un `-wal` propre au premier accès.
 4. **Copie le backup validé** à la place de l'ancienne base, et le rend au propriétaire du backend (`chown 1000:1000`, l'utilisateur `appuser` ; le conteneur jetable écrit en root).
 5. **Redémarre le backend** et vérifie que `/api/health` répond.

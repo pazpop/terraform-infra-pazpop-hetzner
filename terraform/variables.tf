@@ -17,7 +17,7 @@ variable "server_name" {
 }
 
 variable "server_type" {
-  description = "cx23 = 2 vCPU / 4GB, largement suffisant pour ce projet (moins cher que cx22)"
+  description = "cx23 = 2 vCPU / 4GB, largement suffisant pour ce projet"
   type        = string
   default     = "cx23"
 }

@@ -32,8 +32,8 @@ http:
         customFrameOptionsValue: "SAMEORIGIN"
         referrerPolicy: "strict-origin-when-cross-origin"
         # CSP commune à tous les sites derrière Traefik ; justification de chaque
-        # exception ('unsafe-inline', Google Analytics) : docs/securite.md.
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+        # exception ('unsafe-inline', data:, Google Analytics) : docs/securite.md.
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
         customResponseHeaders:
           Permissions-Policy: "camera=(), microphone=(), geolocation=()"
           Server: ""

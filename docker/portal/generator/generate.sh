@@ -37,7 +37,10 @@ render() {
 <ul>
 HTML_HEAD
 
-  apps=$(curl -sf "$PROXY_URL/containers/json" \
+  # Proxy injoignable : on garde la page précédente (curl dans un tube
+  # échouerait sans que le script le voie).
+  containers=$(curl -sf "$PROXY_URL/containers/json") || { rm -f "$tmp"; return 1; }
+  apps=$(printf '%s' "$containers" \
     | jq -r '[.[] | select(.Labels["pazpop.portal.enable"]=="true") | {name: .Labels["pazpop.portal.name"], url: .Labels["pazpop.portal.url"]}] | sort_by(.name) | .[] | @base64')
 
   if [ -z "$apps" ]; then

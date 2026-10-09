@@ -44,11 +44,15 @@ echo "[restore] 2/5 — Arrêt du conteneur backend..."
 trap '(cd ~/arcadepipe && docker compose start backend)' EXIT
 
 # Copie de la base en place avant de l'écraser : une erreur de fichier se
-# rattrape en restaurant cette copie. Une base en place illisible n'empêche pas
-# la restauration (c'est peut-être la raison de la restaurer).
+# rattrape en restaurant cette copie. Pas quand c'est cette copie qu'on
+# restaure : elle serait écrasée avant d'avoir servi. Une base en place
+# illisible n'empêche pas la restauration (c'est peut-être la raison de la
+# restaurer). -readonly : sqlite3 ne crée pas une base vide si le fichier manque.
 mkdir -p "$SAFETY_DIR"
-if docker run --rm -v "${VOLUME}:/data" -v "${SAFETY_DIR}:/safety" "$IMAGE" \
-    sqlite3 "/data/${DB_NAME}" ".backup '/safety/${DB_NAME}'"; then
+if [ "$BACKUP_DIR" = "$SAFETY_DIR" ]; then
+  echo "[restore] Restauration de la copie de sécurité : elle est laissée telle quelle."
+elif docker run --rm -v "${VOLUME}:/data" -v "${SAFETY_DIR}:/safety" "$IMAGE" \
+    sqlite3 -readonly "/data/${DB_NAME}" ".backup '/safety/${DB_NAME}'"; then
   echo "[restore] Base en place copiée dans ${SAFETY_DIR}/${DB_NAME}"
 else
   echo "[restore] ATTENTION : base en place illisible, aucune copie avant restauration." >&2

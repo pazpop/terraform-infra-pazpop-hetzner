@@ -33,9 +33,9 @@ Transfère la stack, construit et démarre les conteneurs, vérifie `game.pazpop
 
 ## Notes
 
-- `generator` n'a jamais accès direct à `/var/run/docker.sock` — seulement à `docker-socket-proxy`, restreint à `GET /containers` (voir le commentaire dans `docker-compose.yml`).
+- `generator` n'a jamais accès direct à `/var/run/docker.sock` — seulement à `docker-socket-proxy`, restreint à la lecture (voir le commentaire dans `docker-compose.yml`).
 - Aucune donnée utilisateur, aucun tracker — le contenu de la page vient uniquement des labels que nous posons nous-mêmes sur nos propres conteneurs.
 
 ## Roadmap
 
-- [ ] Durcir `web` comme `generator`/`docker-socket-proxy` (`cap_drop: ALL`, rootfs read-only, non-root) : même recette que le frontend d'arcadepipe (`setcap cap_net_bind_service` sur le binaire Caddy, utilisateur dédié, `/config` et `/data` en tmpfs).
+- [ ] Durcir `web`, `generator` et `docker-socket-proxy` (`cap_drop: ALL`, rootfs read-only, non-root ; aucun n'a encore les trois) : pour `web`, même recette que le frontend d'arcadepipe (utilisateur dédié, `cap_add: NET_BIND_SERVICE`, `/config` et `/data` en tmpfs).

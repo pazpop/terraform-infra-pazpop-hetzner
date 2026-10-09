@@ -9,7 +9,7 @@ x-logging: &default-logging
 services:
   # Proxy en lecture seule vers le socket Docker (réseau interne traefik-internal
   # uniquement). Monter docker.sock, même en :ro, donnerait un accès root à l'hôte :
-  # :ro ne restreint pas les appels à l'API. Seuls CONTAINERS=1 et NETWORKS=1 sont autorisés.
+  # :ro ne restreint pas les appels à l'API. CONTAINERS=1 et NETWORKS=1 s'ajoutent à ce que l'image autorise par défaut (événements, ping, version).
   docker-socket-proxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
     environment:
@@ -38,8 +38,6 @@ services:
     # d'API Docker figée à 1.24, insuffisante pour Docker >= 29 (minimum
     # relevé à 1.44).
     image: traefik:v3.7.13
-    environment:
-      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL}
     ports:
       - "80:80"
       - "443:443"
