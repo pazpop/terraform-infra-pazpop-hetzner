@@ -81,8 +81,8 @@ services:
       - "traefik.http.routers.arcadepipe-web.tls.certresolver=letsencrypt"
       - "traefik.http.routers.arcadepipe-web.priority=1"
       # Pas de rate-limit@file ici : ce routeur sert une quarantaine de fichiers statiques
-      # par page, et un second onglet ou une IP partagée dépasse le burst (40) : 429 sur les
-      # .xm, musique muette. Pour en remettre un : middleware dédié aux statiques, burst >= 100.
+      # par page, et un second onglet ou une IP partagée dépasse le burst (40) : 429 sur la
+      # musique, donc jeu muet. Pour en remettre un : middleware dédié aux statiques, burst >= 100.
       - "traefik.http.routers.arcadepipe-web.middlewares=secure-headers@file"
       - "traefik.http.services.arcadepipe-web.loadbalancer.server.port=80"
       # Lu par le générateur du portail (voir portal/) — sans rapport avec

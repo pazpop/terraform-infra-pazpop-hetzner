@@ -15,8 +15,8 @@ http:
     # ça, un payload énorme serait lu en mémoire par le backend avant même
     # que Pydantic ne le rejette. Seul maxRequestBodyBytes est posé : ne
     # jamais toucher maxResponseBodyBytes ici, ça limiterait aussi ce que le
-    # serveur RENVOIE (fichiers statiques, musique .xm de plusieurs centaines
-    # de Ko) — or ce middleware n'est attaché qu'au routeur API
+    # serveur RENVOIE (fichiers statiques, musique MP3 de plusieurs Mo) — or
+    # ce middleware n'est attaché qu'au routeur API
     # (docker-compose.yml, arcadepipe-api), jamais à celui qui sert le jeu.
     # 10 Ko : un score (pseudo + 3 entiers en JSON) tient sur quelques
     # dizaines d'octets, large marge sans jamais gêner un usage normal.

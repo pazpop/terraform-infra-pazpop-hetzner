@@ -14,6 +14,12 @@ on:
         required: false
         default: ""
 
+# Un seul déploiement à la fois : deux exécutions simultanées (un push et un
+# retour arrière manuel, par exemple) mélangeraient leurs commandes sur le VPS.
+concurrency:
+  group: deploy-arcadepipe
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

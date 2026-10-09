@@ -11,7 +11,7 @@ sequenceDiagram
     participant VPS
 
     Dev->>AP: git push main
-    AP->>AP: lint (ruff, eslint), pip-audit, tests (pytest, node --test)
+    AP->>AP: lint (ruff, eslint), pip-audit, tests (pytest, node --test, Playwright)
     AP->>GHCR: build + push images<br/>(:latest, :sha)
     AP->>TI: repository_dispatch<br/>event "arcadepipe-published"
     TI->>VPS: scp docker/arcadepipe/docker-compose.yml
@@ -28,4 +28,4 @@ sequenceDiagram
    ssh-keyscan -p 2222 <IP> | ssh-keygen -lf -
    ```
    À régénérer si le VPS est recréé : le workflow échoue sinon, volontairement.
-4. **Secret du repo `arcadepipe`** : `TERRAFORM_INFRA_DISPATCH_TOKEN`, un [token *fine-grained*](https://github.com/settings/tokens?type=beta) limité à ce repo-ci, permission *Contents: Read and write* (minimum exigé par l'API `dispatches`).
+4. **Secret du repo `arcadepipe`** : `TERRAFORM_INFRA_DISPATCH_TOKEN`, un [token *fine-grained*](https://github.com/settings/tokens?type=beta) limité à ce repo-ci, permission *Contents: Read and write* (minimum exigé par l'API `dispatches`). Ce droit permet aussi d'écrire dans ce repo, dont le `docker-compose.yml` copié sur le VPS : à traiter comme un accès au serveur, et à renouveler s'il fuit.
