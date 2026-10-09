@@ -59,9 +59,11 @@ services:
       # /config,/data : XDG_CONFIG_HOME/XDG_DATA_HOME de Caddy (autosave de
       # config, cache) — jamais de vrais certificats ici (Traefik termine le
       # TLS), donc aucune perte à les garder éphémères plutôt que persistés.
+      # uid/gid : ceux de caddyuser (Dockerfile du repo arcadepipe), sinon
+      # Caddy ne peut pas y écrire.
       - /tmp
-      - /config
-      - /data
+      - /config:uid=1000,gid=1000
+      - /data:uid=1000,gid=1000
     cap_drop:
       - ALL
     # NET_BIND_SERVICE : indispensable pour que le Caddy non-root (voir le
