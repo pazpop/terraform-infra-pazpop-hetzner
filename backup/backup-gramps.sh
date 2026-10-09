@@ -33,7 +33,8 @@ trap 'rm -rf "$WORK"' EXIT
 echo "[backup-gramps] Démarrage $(date -Iseconds)"
 
 # Pas de montage ":ro" sur les volumes SQLite : sqlite3 doit pouvoir créer ses fichiers
-# de verrou même pour lire.
+# de verrou même pour lire. -readonly : une base absente fait échouer la copie au
+# lieu d'être créée vide.
 # `.backup` copie une base vivante de façon cohérente ; chaque copie est vérifiée tout
 # de suite par integrity_check (une source corrompue donnerait une copie corrompue).
 docker run --rm \
@@ -57,7 +58,7 @@ docker run --rm \
         [ -e "$f" ] || continue
         case "$f" in
           *.db)
-            sqlite3 "$f" ".backup \"/out/db/$f\""
+            sqlite3 -readonly "$f" ".backup \"/out/db/$f\""
             res="$(sqlite3 "/out/db/$f" "PRAGMA integrity_check;")"
             [ "$res" = "ok" ] || { echo "integrity_check KO sur $f : $res" >&2; exit 1; }
             ;;
@@ -66,7 +67,7 @@ docker run --rm \
         esac
       done
     done
-    sqlite3 /src/users/users.sqlite ".backup /out/users/users.sqlite"
+    sqlite3 -readonly /src/users/users.sqlite ".backup /out/users/users.sqlite"
     res="$(sqlite3 /out/users/users.sqlite "PRAGMA integrity_check;")"
     [ "$res" = "ok" ] || { echo "integrity_check KO sur users.sqlite : $res" >&2; exit 1; }
     cp -a /src/secret /out/secret

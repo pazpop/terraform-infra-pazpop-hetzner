@@ -48,7 +48,7 @@ Au tout premier démarrage, `grampsweb` et `gramps-celery` créent chacun l'arbr
 docker exec gramps-grampsweb-1 python3 -m gramps_webapi tree list   # un seul arbre attendu
 ```
 
-S'il y en a deux : `docker compose down`, supprimer les volumes `gramps_db` et `gramps_index` (tout est vide à ce stade), relancer `docker compose up -d grampsweb`, attendre qu'il réponde, puis `docker compose up -d`. Dans les deux cas, reporter l'identifiant affiché dans `.env` (`GRAMPS_TREE_ID=…`) : le nom devient alors modifiable sans risque.
+S'il y en a deux : `docker compose down`, supprimer les volumes `gramps_db` et `gramps_index` (tout est vide à ce stade), relancer `docker compose up -d grampsweb`, attendre qu'il réponde, puis `docker compose up -d`. Dans les deux cas, reporter l'identifiant affiché dans le `.env` local, `docker/gramps/.env` (`GRAMPS_TREE_ID=…` ; celui du VPS est remplacé à chaque déploiement) : le nom devient alors modifiable sans risque.
 
 Créer le compte propriétaire (rôle 4) sur le VPS. `read -s` évite que le mot de passe finisse dans l'historique du shell. Il reste visible quelques secondes dans la commande du conteneur temporaire (`ps`, API Docker) : acceptable tant que la route n'est pas ouverte, mais **change ce mot de passe dans l'interface** une fois connecté.
 
@@ -60,7 +60,7 @@ docker compose run --rm grampsweb python3 -m gramps_webapi user add <utilisateur
 unset PW
 ```
 
-Puis ouvrir la route : `GRAMPS_EXPOSE=true` dans `docker/gramps/.env`, et `./deploy.sh gramps` de nouveau (le résumé doit afficher ✅ 200 sur le domaine).
+Puis ouvrir la route : `GRAMPS_EXPOSE=true` dans `docker/gramps/.env`, et `./deploy.sh gramps` de nouveau (le résumé doit afficher ✅ en face du domaine).
 
 Enfin, installer le backup : `cd backup && ./deploy-backup.sh`.
 

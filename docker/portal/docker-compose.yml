@@ -28,6 +28,12 @@ services:
       - /run
     security_opt:
       - no-new-privileges:true
+    # Le proxy répond : sans lui, --wait (deploy.sh) le dirait prêt alors qu'il redémarre en boucle.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
     mem_limit: 64m
     cpus: 0.1
 

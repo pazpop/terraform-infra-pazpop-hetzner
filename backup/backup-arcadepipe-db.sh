@@ -27,28 +27,33 @@ echo "[backup] Démarrage $(date -Iseconds)"
 # même en lecture (il doit pouvoir créer ses fichiers de verrou).
 # -readonly : si la base manque (volume vide), sqlite3 échoue au lieu d'en créer
 # une vide, qui donnerait un backup « réussi » sans aucun score.
+# La copie est écrite sous un nom provisoire (un fichier caché, que la rotation
+# ignore) et ne prend son nom définitif qu'une fois vérifiée : un échec ne laisse
+# jamais dans daily/ un fichier vide ou corrompu qui passerait pour un backup.
+PARTIAL=".en-cours.db"
+BACKUP_PATH="${DAILY_DIR}/${BACKUP_FILE}"
+rm -f "${DAILY_DIR}/${PARTIAL}"
 docker run --rm \
   -v "${VOLUME}:/source" \
   -v "${DAILY_DIR}:/backup" \
   "$IMAGE" \
-  sqlite3 -readonly "/source/${DB_NAME}" ".backup '/backup/${BACKUP_FILE}'"
-
-BACKUP_PATH="${DAILY_DIR}/${BACKUP_FILE}"
+  sqlite3 -readonly "/source/${DB_NAME}" ".backup '/backup/${PARTIAL}'"
 
 # Vérification immédiate : un `.backup` d'une base corrompue produit un backup tout
 # aussi corrompu, sans erreur.
-if [ ! -s "$BACKUP_PATH" ]; then
-  echo "[backup] ERREUR : fichier de backup vide ou absent ($BACKUP_PATH)" >&2
+if [ ! -s "${DAILY_DIR}/${PARTIAL}" ]; then
+  echo "[backup] ERREUR : copie vide ou absente" >&2
   exit 1
 fi
 
 INTEGRITY="$(docker run --rm -v "${DAILY_DIR}:/backup" "$IMAGE" \
-  sqlite3 "/backup/${BACKUP_FILE}" "PRAGMA integrity_check;")"
+  sqlite3 "/backup/${PARTIAL}" "PRAGMA integrity_check;")"
 
 if [ "$INTEGRITY" != "ok" ]; then
-  echo "[backup] ERREUR : integrity_check a échoué sur $BACKUP_PATH : $INTEGRITY" >&2
+  echo "[backup] ERREUR : integrity_check a échoué : $INTEGRITY" >&2
   exit 1
 fi
+mv "${DAILY_DIR}/${PARTIAL}" "$BACKUP_PATH"
 
 echo "[backup] OK : $BACKUP_PATH ($(du -h "$BACKUP_PATH" | cut -f1), integrity_check=ok)"
 

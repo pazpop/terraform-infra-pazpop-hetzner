@@ -27,6 +27,12 @@ services:
       - /run
     security_opt:
       - no-new-privileges:true
+    # Le proxy répond : sans lui, --wait (deploy.sh) le dirait prêt alors qu'il redémarre en boucle.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2375/_ping"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
     mem_limit: 64m
     cpus: 0.1
 
@@ -34,9 +40,6 @@ services:
   # Les apps (ex: arcadepipe) rejoignent le réseau externe "traefik-public"
   # et se déclarent via labels — aucune n'a besoin de publier de port.
   traefik:
-    # >= v3.6.1 requis : les versions antérieures négocient une version
-    # d'API Docker figée à 1.24, insuffisante pour Docker >= 29 (minimum
-    # relevé à 1.44).
     image: traefik:v3.7.13
     ports:
       - "80:80"

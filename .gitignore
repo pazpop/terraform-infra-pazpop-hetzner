@@ -6,7 +6,7 @@ terraform.tfvars
 crash.log
 crash.*.log
 
-# Secrets par service (ex: traefik/.env)
+# Réglages et secrets par service (ex: gramps/.env)
 .env
 
 # Secrets de Gramps Web (SMTP) : monté dans le conteneur, jamais committé

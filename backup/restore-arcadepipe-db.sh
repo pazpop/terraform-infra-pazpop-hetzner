@@ -17,8 +17,9 @@ DB_NAME="arcadepipe.db"
 # Copie de la base en place, prise juste avant de l'écraser (une seule, remplacée à chaque restauration).
 SAFETY_DIR="/var/backups/arcadepipe/avant-restauration"
 
-if [ ! -f "$BACKUP_SOURCE" ]; then
-  echo "[restore] ERREUR : fichier introuvable : $BACKUP_SOURCE" >&2
+# -s : le fichier existe et n'est pas vide (un fichier vide passe integrity_check).
+if [ ! -s "$BACKUP_SOURCE" ]; then
+  echo "[restore] ERREUR : fichier introuvable ou vide : $BACKUP_SOURCE" >&2
   exit 1
 fi
 

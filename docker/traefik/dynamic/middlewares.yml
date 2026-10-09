@@ -29,7 +29,7 @@ http:
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         contentTypeNosniff: true
-        customFrameOptionsValue: "SAMEORIGIN"
+        frameDeny: true # même consigne que frame-ancestors 'none' de la CSP : jamais dans un cadre
         referrerPolicy: "strict-origin-when-cross-origin"
         # CSP commune à tous les sites derrière Traefik ; justification de chaque
         # exception ('unsafe-inline', data:, Google Analytics) : docs/securite.md.
@@ -41,7 +41,7 @@ http:
     # --- Gramps Web (docker/gramps/) -------------------------------------------
     # Mêmes en-têtes que secure-headers, SANS sa CSP : celle-ci est taillée pour
     # arcadepipe (Google Analytics) et bloquerait les tuiles de
-    # carte de Gramps Web (img-src limité à 'self'). Une CSP propre à Gramps reste
+    # carte de Gramps Web (img-src limité à 'self' et data:). Une CSP propre à Gramps reste
     # à écrire en observant la console du navigateur (voir docker/gramps/README.md,
     # Roadmap) — pas de valeur devinée ici.
     gramps-headers:

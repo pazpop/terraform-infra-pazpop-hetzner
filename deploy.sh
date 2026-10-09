@@ -57,8 +57,9 @@ if [ "$STACK" = "gramps" ]; then
       exit 1
     fi
   done
-  GRAMPS_DOMAIN="$(sed -n 's/^GRAMPS_DOMAIN=//p' "$DOCKER_DIR/gramps/.env" | tail -n 1)"
-  GRAMPS_EXPOSE="$(sed -n 's/^GRAMPS_EXPOSE=//p' "$DOCKER_DIR/gramps/.env" | tail -n 1)"
+  # tr -d '\r' : un .env enregistré sous Windows finit ses lignes par un retour chariot.
+  GRAMPS_DOMAIN="$(sed -n 's/^GRAMPS_DOMAIN=//p' "$DOCKER_DIR/gramps/.env" | tail -n 1 | tr -d '\r')"
+  GRAMPS_EXPOSE="$(sed -n 's/^GRAMPS_EXPOSE=//p' "$DOCKER_DIR/gramps/.env" | tail -n 1 | tr -d '\r')"
 fi
 
 HOST="$(cd "$TERRAFORM_DIR" && tofu output -raw server_ip)"
@@ -87,7 +88,9 @@ run remote "rm -rf ~/$STACK && tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz
 # (traefik.yml, config.cfg) n'est pas recréé et garde l'ancienne configuration.
 # --remove-orphans : un service retiré du compose est arrêté.
 # --wait : attend que les conteneurs soient démarrés et, s'ils ont un contrôle de
-# santé, « healthy » ; échoue sinon.
+# santé, « healthy » ; échoue sinon. Un conteneur sans contrôle de santé (ceux de
+# gramps) passe dès qu'il a démarré, même s'il s'arrête aussitôt après : pour
+# eux, c'est la vérification de l'adresse, plus bas, qui fait foi.
 READY=true
 run remote "cd ~/$STACK && docker compose pull && docker compose up -d --build --force-recreate --remove-orphans --wait --wait-timeout 60" || READY=false
 
@@ -124,7 +127,7 @@ echo "===================== Résumé ====================="
 remote "cd ~/$STACK && docker compose ps --format 'table {{.Name}}\t{{.Status}}'"
 echo "----------------------------------------------------"
 if $READY; then
-  echo "Conteneurs : ✅ tous prêts"
+  echo "Conteneurs : ✅ démarrés (et sains, pour ceux qui ont un contrôle de santé)"
 else
   echo "Conteneurs : ❌ pas prêts (sur le VPS : cd ~/$STACK && docker compose logs)"
   FAILED=true

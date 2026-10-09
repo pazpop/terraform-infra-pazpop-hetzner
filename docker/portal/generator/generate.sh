@@ -39,7 +39,7 @@ HTML_HEAD
 
   # Proxy injoignable : on garde la page précédente (curl dans un tube
   # échouerait sans que le script le voie).
-  containers=$(curl -sf "$PROXY_URL/containers/json") || { rm -f "$tmp"; return 1; }
+  containers=$(curl -sf --max-time 10 "$PROXY_URL/containers/json") || { rm -f "$tmp"; return 1; }
   apps=$(printf '%s' "$containers" \
     | jq -r '[.[] | select(.Labels["pazpop.portal.enable"]=="true") | {name: .Labels["pazpop.portal.name"], url: .Labels["pazpop.portal.url"]}] | sort_by(.name) | .[] | @base64')
 
@@ -60,6 +60,7 @@ HTML_HEAD
 </html>
 HTML_FOOT
 
+  chmod 644 "$tmp" # mktemp crée un fichier lisible par root seul
   mv "$tmp" "$OUT"
 }
 

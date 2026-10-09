@@ -22,4 +22,3 @@ Ensuite, chaque repo d'app (ex: `arcadepipe`) rejoint le réseau `traefik-public
 - Certificats Let's Encrypt (HTTP-01, port 80) stockés dans le volume nommé `letsencrypt`.
 - Dashboard Traefik désactivé (pas d'exposition publique).
 - Le middleware d'en-têtes de sécurité partagé est dans `dynamic/middlewares.yml` (`secure-headers`) — à référencer depuis les labels de chaque app.
-- La version de l'image `traefik` dans `docker-compose.yml` doit rester ≥ v3.6.1 : les versions antérieures négocient une API Docker figée à 1.24, insuffisante pour Docker ≥ 29 (minimum relevé à 1.44).

@@ -16,3 +16,9 @@ updates:
     directories: ["/backup", "/docker/portal/generator", "/docker/portal/web"]
     schedule:
       interval: "weekly"
+
+  # Fournisseur Hetzner d'OpenTofu (terraform/.terraform.lock.hcl).
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "weekly"
