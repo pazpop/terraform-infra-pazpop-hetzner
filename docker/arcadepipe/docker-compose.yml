@@ -20,7 +20,11 @@ services:
     volumes:
       - backend_data:/data
     environment:
-      - ALLOWED_ORIGINS=https://arcadepipe.pazpop.net
+      # Sites autorisés à appeler l'API depuis un navigateur (CORS) : le jeu
+      # lui-même, et sa version publiée sur itch.io, dont les fichiers sont
+      # servis par html-classic.itch.zone (domaine commun à tous les jeux HTML
+      # d'itch.io).
+      - ALLOWED_ORIGINS=https://arcadepipe.pazpop.net,https://html-classic.itch.zone
     networks:
       - traefik-public
     restart: unless-stopped
