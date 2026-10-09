@@ -74,7 +74,12 @@ run remote "docker network create traefik-public 2>/dev/null || true"
 trap 'rm -f "$TAR_PATH"' EXIT
 run tar -czf "$TAR_PATH" -C "$DOCKER_DIR" "$STACK"
 run scp -P "$SSH_PORT" -i "$SSH_KEY" "$TAR_PATH" "$SSH_USER@$HOST:~/${STACK}.tar.gz"
-run remote "tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz"
+# Le dossier de la stack est vidé avant l'extraction : un fichier supprimé du dépôt
+# ne reste pas sur le VPS (Traefik chargerait encore un ancien dynamic/*.yml).
+# Rien n'y est à garder : les données sont dans des volumes Docker, et les
+# fichiers non versionnés de gramps voyagent dans l'archive. $STACK vaut
+# forcément l'un des quatre noms acceptés plus haut.
+run remote "rm -rf ~/$STACK && tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz"
 
 # pull : sans lui, une image tirée d'un registre (arcadepipe, traefik) resterait
 # celle déjà présente sur le VPS, même périmée.
