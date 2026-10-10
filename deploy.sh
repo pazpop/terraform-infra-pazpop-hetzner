@@ -75,15 +75,18 @@ run remote "docker network create traefik-public 2>/dev/null || true"
 trap 'rm -f "$TAR_PATH"' EXIT
 run tar -czf "$TAR_PATH" -C "$DOCKER_DIR" "$STACK"
 run scp -P "$SSH_PORT" -i "$SSH_KEY" "$TAR_PATH" "$SSH_USER@$HOST:~/${STACK}.tar.gz"
-# Le dossier de la stack est vidé avant l'extraction : un fichier supprimé du dépôt
-# ne reste pas sur le VPS (Traefik chargerait encore un ancien dynamic/*.yml).
-# Rien n'y est à garder : les données sont dans des volumes Docker, et les
-# fichiers non versionnés de gramps voyagent dans l'archive. $STACK vaut
-# forcément l'un des quatre noms acceptés plus haut.
+# En deux temps. D'abord l'archive est extraite par-dessus le dossier en place
+# et les images sont téléchargées (sans ce pull, une image tirée d'un registre
+# resterait celle déjà présente sur le VPS, même périmée). Si le registre ne
+# répond pas, le script s'arrête ici : les conteneurs en marche ne sont pas touchés.
+run remote "tar xzf ~/${STACK}.tar.gz && cd ~/$STACK && docker compose pull"
+# Ensuite seulement, le dossier est vidé et extrait de nouveau : un fichier
+# supprimé du dépôt ne reste pas sur le VPS (Traefik chargerait encore un ancien
+# dynamic/*.yml). Rien n'y est à garder : les données sont dans des volumes
+# Docker, et les fichiers non versionnés de gramps voyagent dans l'archive.
+# $STACK vaut forcément l'un des quatre noms acceptés plus haut.
 run remote "rm -rf ~/$STACK && tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz"
 
-# pull : sans lui, une image tirée d'un registre (arcadepipe, traefik) resterait
-# celle déjà présente sur le VPS, même périmée.
 # --force-recreate : sans lui, un conteneur dont seul un fichier monté a changé
 # (traefik.yml, config.cfg) n'est pas recréé et garde l'ancienne configuration.
 # --remove-orphans : un service retiré du compose est arrêté.
@@ -92,7 +95,7 @@ run remote "rm -rf ~/$STACK && tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz
 # gramps) passe dès qu'il a démarré, même s'il s'arrête aussitôt après : pour
 # eux, c'est la vérification de l'adresse, plus bas, qui fait foi.
 READY=true
-run remote "cd ~/$STACK && docker compose pull && docker compose up -d --build --force-recreate --remove-orphans --wait --wait-timeout 60" || READY=false
+run remote "cd ~/$STACK && docker compose up -d --build --force-recreate --remove-orphans --wait --wait-timeout 60" || READY=false
 
 # Sans -a : ne supprime que les images que plus rien ne nomme.
 run remote "docker image prune -f"
