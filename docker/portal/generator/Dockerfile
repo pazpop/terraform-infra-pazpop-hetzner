@@ -6,7 +6,10 @@ RUN apk add --no-cache curl jq
 COPY generate.sh /generate.sh
 RUN chmod +x /generate.sh
 
+# Sain si la page a été écrite depuis moins de deux minutes (elle l'est toutes
+# les 30 s) : un fichier seulement présent ne prouverait rien, le volume en
+# contient un dès sa création.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-  CMD test -f /output/index.html || exit 1
+  CMD find /output/index.html -mmin -2 | grep -q . || exit 1
 
 ENTRYPOINT ["/generate.sh"]

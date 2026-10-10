@@ -37,11 +37,12 @@ render() {
 <ul>
 HTML_HEAD
 
-  # Proxy injoignable : on garde la page précédente (curl dans un tube
-  # échouerait sans que le script le voie).
+  # Proxy injoignable ou réponse illisible : on garde la page précédente (curl
+  # dans un tube échouerait sans que le script le voie).
   containers=$(curl -sf --max-time 10 "$PROXY_URL/containers/json") || { rm -f "$tmp"; return 1; }
   apps=$(printf '%s' "$containers" \
-    | jq -r '[.[] | select(.Labels["pazpop.portal.enable"]=="true") | {name: .Labels["pazpop.portal.name"], url: .Labels["pazpop.portal.url"]}] | sort_by(.name) | .[] | @base64')
+    | jq -r '[.[] | select(.Labels["pazpop.portal.enable"]=="true") | {name: .Labels["pazpop.portal.name"], url: .Labels["pazpop.portal.url"]}] | sort_by(.name) | .[] | @base64') \
+    || { rm -f "$tmp"; return 1; }
 
   if [ -z "$apps" ]; then
     echo '<p class="empty">Aucune application déployée pour le moment.</p>' >> "$tmp"
