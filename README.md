@@ -29,7 +29,7 @@ deploy.sh    # déploie une stack (traefik, portal, arcadepipe ou gramps) sur le
 
 ## Utilisation
 
-Prérequis : [OpenTofu](https://opentofu.org/docs/intro/install/), un [token API Hetzner](https://console.hetzner.cloud/) (Read & Write), une paire de clés SSH dédiée.
+Prérequis : [OpenTofu](https://opentofu.org/docs/intro/install/), un [token API Hetzner](https://console.hetzner.cloud/) (Read & Write), une paire de clés SSH dédiée, attendue dans `~/.ssh/arcadepipe_vps` et `~/.ssh/arcadepipe_vps.pub` (`ssh-keygen -t ed25519 -f ~/.ssh/arcadepipe_vps`). Chaque domaine servi doit avoir un enregistrement DNS `A` vers l'adresse du serveur avant le premier déploiement de sa stack : sans lui, Let's Encrypt ne délivre pas de certificat.
 
 ```sh
 cd terraform

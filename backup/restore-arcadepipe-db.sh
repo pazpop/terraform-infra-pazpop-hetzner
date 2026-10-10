@@ -56,7 +56,7 @@ elif docker run --rm -v "${VOLUME}:/data" -v "${SAFETY_DIR}:/safety" "$IMAGE" \
     sqlite3 -readonly "/data/${DB_NAME}" ".backup '/safety/${DB_NAME}'"; then
   echo "[restore] Base en place copiée dans ${SAFETY_DIR}/${DB_NAME}"
 else
-  echo "[restore] ATTENTION : base en place illisible, aucune copie avant restauration." >&2
+  echo "[restore] ATTENTION : base en place illisible, aucune copie avant restauration (un fichier présent dans ${SAFETY_DIR} date d'une restauration précédente)." >&2
 fi
 
 # 3/5 — Purger les -wal/-shm de l'ANCIENNE base avant la copie. Piège classique
