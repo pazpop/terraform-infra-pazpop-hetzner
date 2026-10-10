@@ -23,6 +23,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     env:
@@ -69,7 +70,7 @@ jobs:
           # `--wait` : le job échoue si un conteneur ne devient pas « healthy ».
           # `--remove-orphans` : un service retiré du compose est arrêté.
           # Retour arrière : l'image :<sha> est retaguée :latest (le compose ne connaît que :latest) ;
-          # le prochain déploiement normal retire à nouveau la vraie :latest.
+          # le prochain déploiement normal télécharge de nouveau la vraie :latest.
           script: |
             set -e
             cd ~/arcadepipe

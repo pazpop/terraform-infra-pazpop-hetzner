@@ -38,10 +38,16 @@ print(conn.execute(\\\"SELECT COUNT(*) FROM scores WHERE player_name = '${TEST_P
 \""
 }
 
-# Nettoyage garanti même en cas d'échec (trap sur EXIT) : pas de faux scores dans le vrai classement.
+# Nettoyage garanti même en cas d'échec (trap sur EXIT) : pas de faux score dans
+# le vrai classement, ni de backup qui le contient (le restaurer plus tard le
+# ferait revenir).
+BACKUP_PATH=""
 cleanup() {
   echo "[test] Nettoyage : suppression de ${TEST_PLAYER}..."
   delete_test_score || true
+  if [ -n "$BACKUP_PATH" ]; then
+    ssh "$SSH_HOST" "rm -f '$BACKUP_PATH' '/var/backups/arcadepipe/weekly/$(basename "$BACKUP_PATH")'" || true
+  fi
 }
 trap cleanup EXIT
 

@@ -14,7 +14,7 @@ html_escape() {
 }
 
 render() {
-  tmp=$(mktemp)
+  tmp=$(mktemp /output/.index.XXXXXX) # dans le même dossier que la page : le mv final la remplace d'un coup
   cat > "$tmp" <<'HTML_HEAD'
 <!DOCTYPE html>
 <html lang="fr">

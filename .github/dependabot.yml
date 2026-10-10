@@ -18,7 +18,7 @@ updates:
       interval: "weekly"
 
   # Fournisseur Hetzner d'OpenTofu (terraform/.terraform.lock.hcl).
-  - package-ecosystem: "terraform"
+  - package-ecosystem: "opentofu"
     directory: "/terraform"
     schedule:
       interval: "weekly"

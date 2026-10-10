@@ -2,7 +2,7 @@
 # Restaure la DB arcadepipe depuis un backup de backup-arcadepipe-db.sh.
 # Usage : ./restore-arcadepipe-db.sh <chemin-du-backup>
 # Scripté plutôt que documenté : un incident n'est pas le moment de taper à la
-# main. Déroulé humain équivalent : backup/README.md.
+# main. Les mêmes étapes à la main, sans les garde-fous : backup/README.md.
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
@@ -41,8 +41,8 @@ echo "[restore] OK : backup valide."
 # ligne, seules les routes /api/* échouent pendant la restauration). Il est
 # relancé à la sortie du script, même si une étape échoue.
 echo "[restore] 2/5 — Arrêt du conteneur backend..."
-(cd ~/arcadepipe && docker compose stop backend)
 trap '(cd ~/arcadepipe && docker compose start backend)' EXIT
+(cd ~/arcadepipe && docker compose stop backend)
 
 # Copie de la base en place avant de l'écraser : une erreur de fichier se
 # rattrape en restaurant cette copie. Pas quand c'est cette copie qu'on

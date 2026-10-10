@@ -16,7 +16,7 @@ Déploie les deux backups. Idempotent : relançable sans risque après toute mod
 
 ## Mécanisme (arcadepipe)
 
-Un conteneur jetable (`Dockerfile`, image `backup-tool` : alpine + `sqlite3`, ~10 Mo, construite sur la VPS, jamais publiée) monte le volume `backend_data` et exécute `sqlite3 arcadepipe.db ".backup '...'"` : l'API de backup officielle de SQLite, conçue pour copier une base **vivante** (mode WAL) de façon cohérente. Jamais de `cp` du fichier `.db` : il pourrait capturer un état à cheval entre le fichier principal et son `-wal`.
+Un conteneur jetable (`Dockerfile`, image `backup-tool` : alpine + `sqlite3`, ~10 Mo, construite sur la VPS, jamais publiée) monte le volume `backend_data` et exécute `sqlite3 -readonly arcadepipe.db ".backup '...'"` : l'API de backup officielle de SQLite, conçue pour copier une base **vivante** (mode WAL) de façon cohérente. Jamais de `cp` du fichier `.db` : il pourrait capturer un état à cheval entre le fichier principal et son `-wal`.
 
 Le montage n'est **pas** en lecture seule : avec `:ro`, `sqlite3` échoue (`unable to open database file`) même pour une simple lecture, car il doit pouvoir créer ses fichiers de verrou à côté de la base.
 

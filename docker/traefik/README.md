@@ -12,7 +12,9 @@ Depuis la racine du dépôt (`terraform-infra-pazpop-hetzner/`) :
 
 Crée le réseau `traefik-public` (idempotent), transfère la stack et démarre les conteneurs. Fonctionne aussi bien pour le premier lancement sur une VPS neuve que pour un redéploiement après modification.
 
-Ensuite, chaque repo d'app (ex: `arcadepipe`) rejoint le réseau `traefik-public` et se route via labels — rien à modifier ici pour ajouter un nouveau jeu.
+Ensuite, chaque stack (`docker/arcadepipe`, `docker/portal`...) rejoint le réseau `traefik-public` et se route par ses labels : rien à modifier dans ce dossier pour en ajouter une. Une nouvelle stack demande en revanche son nom dans la liste acceptée par `deploy.sh`, et sa vérification d'adresse à la fin du script.
+
+`./deploy.sh traefik` recrée Traefik : tous les sites sont coupés quelques secondes.
 
 ## Notes
 

@@ -2,6 +2,8 @@
 Description=Backup quotidien de Gramps Web (arbre, comptes, clé, médias)
 After=docker.service
 Requires=docker.service
+# Sans la stack gramps sur ce serveur, le service est sauté au lieu d'échouer chaque nuit.
+ConditionPathExists=/home/deploy/gramps
 
 [Service]
 Type=oneshot

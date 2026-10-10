@@ -5,7 +5,7 @@
 # « Premier déploiement »).
 #
 # Variables lues dans .env (gitignoré, voir .env.example) : GRAMPS_DOMAIN,
-# GRAMPS_EXPOSE, GRAMPS_TREE. Aucun secret en `environment:` : la clé Flask est
+# GRAMPS_EXPOSE, GRAMPS_TREE, GRAMPS_TREE_ID. Aucun secret en `environment:` : la clé Flask est
 # générée par l'image dans le volume gramps_secret, et un éventuel mot de passe
 # SMTP va dans config.cfg (fichier monté, gitignoré). Rappel de
 # docker/traefik/README.md : les `environment:` d'un conteneur exposé à Traefik
@@ -107,10 +107,9 @@ services:
     networks:
       - gramps-internal
     read_only: true
-    # UID/GID de l'utilisateur "valkey" de l'image (`docker run ... id valkey`) : lancé
-    # directement en non-root, l'entrypoint saute son étape setpriv (qui a besoin de
-    # CAP_SETUID/CAP_SETGID, incompatibles avec cap_drop: ALL) — sinon le conteneur
-    # boucle en échec ("setpriv: setresuid failed: Operation not permitted").
+    # UID/GID de l'utilisateur "valkey" de l'image : lancé directement en
+    # non-root, l'entrypoint saute son étape setpriv, qui a besoin de
+    # CAP_SETUID/CAP_SETGID, incompatibles avec cap_drop: ALL.
     user: "999:1000"
     cap_drop:
       - ALL

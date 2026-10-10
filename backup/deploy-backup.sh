@@ -30,6 +30,9 @@ rm -f "$TAR_PATH"
 ssh -p "$SSH_PORT" -i "$SSH_KEY" "$SSH_USER@$HOST" bash -s <<'REMOTE_SCRIPT'
 set -euo pipefail
 
+# Dossier vidé avant l'extraction : un script ou une unité supprimé du dépôt ne
+# reste pas sur le VPS. Les sauvegardes, elles, sont dans /var/backups.
+rm -rf ~/backup
 mkdir -p ~/backup
 tar xzf ~/backup.tar.gz -C ~/backup
 rm ~/backup.tar.gz

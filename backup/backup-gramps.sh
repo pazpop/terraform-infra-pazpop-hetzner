@@ -28,7 +28,11 @@ mkdir -p "$DAILY_DIR" "$WEEKLY_DIR"
 chmod 700 "$BACKUP_DEST"
 
 WORK="$(mktemp -d "$BACKUP_DEST/.work.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
+# Archive en cours d'écriture : un fichier caché, que la rotation ignore. Elle ne
+# prend son nom définitif qu'une fois complète : une archive tronquée (disque
+# plein) ne passe jamais pour un backup.
+PARTIAL="$DAILY_DIR/.en-cours.tar.gz"
+trap 'rm -rf "$WORK" "$PARTIAL"' EXIT
 
 echo "[backup-gramps] Démarrage $(date -Iseconds)"
 
@@ -81,8 +85,9 @@ if ! find "$WORK/db" -name '*.db' -type f | grep -q .; then
   exit 1
 fi
 
-tar -C "$WORK" -czf "$DAILY_DIR/$ARCHIVE" .
-chmod 600 "$DAILY_DIR/$ARCHIVE"
+tar -C "$WORK" -czf "$PARTIAL" .
+chmod 600 "$PARTIAL"
+mv "$PARTIAL" "$DAILY_DIR/$ARCHIVE"
 echo "[backup-gramps] OK : $DAILY_DIR/$ARCHIVE ($(du -h "$DAILY_DIR/$ARCHIVE" | cut -f1))"
 
 rotation "$DAILY_DIR/$ARCHIVE" "[backup-gramps]"
