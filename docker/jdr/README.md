@@ -1,6 +1,6 @@
 # jdr
 
-Aide de jeu de rôle du meneur, sur `jdr.pazpop.net` : un site statique derrière un mot de passe.
+Aide de jeu de rôle du meneur, sur `jdr.pazpop.net` : ses pages derrière un mot de passe, et l'écran des joueurs, que chacun ouvre sans mot de passe par un lien à lui.
 
 Le site vit dans un autre dépôt, privé : `github.com/pazpop/jdr_co-cthulhu`. Son CI construit l'image `ghcr.io/pazpop/jdr_co-cthulhu` (privée elle aussi) à chaque push, puis déclenche ici `.github/workflows/deploy-jdr.yml`. Ce dossier ne contient que le routage.
 
@@ -24,7 +24,10 @@ Ensuite, chaque push sur `main` de `jdr_co-cthulhu` déploie tout seul. `./deplo
 
 ## Notes
 
-- Sans identifiants, tout répond 401, sauf `/sante`, que `deploy.sh` interroge à la fin.
-- Sans mot de passe dans `.env`, personne ne peut entrer.
+- Sans identifiants, tout répond 401, sauf `/sante` (que `deploy.sh` interroge à la fin), la page `ecran.html` et les adresses `/direct/...` de l'écran des joueurs.
+- `.env` doit contenir l'identifiant **et** l'empreinte : avec une empreinte vide, le conteneur ne démarre pas.
+- **Changer le mot de passe change les liens des joueurs** et leurs codes QR : ils sont calculés à partir de son empreinte.
+- Un déploiement redémarre le conteneur : les écrans des joueurs se vident (leurs liens restent bons). Pas de déploiement pendant une partie.
+- L'écran des joueurs ne répond plus alors que l'aide marche : sur le VPS, `cd ~/jdr && docker compose restart`.
 - Pas de sauvegarde : le site ne garde aucune donnée, tout est dans son dépôt.
 - Absent du portail `game.pazpop.net`, volontairement : pas de label `pazpop.portal.*`.

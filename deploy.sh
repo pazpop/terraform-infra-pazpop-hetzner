@@ -162,7 +162,7 @@ case "$STACK" in
     fi
     ;;
   jdr)
-    # /sante : la seule adresse sans mot de passe (le reste répond 401).
+    # /sante : répond sans mot de passe (les pages du meneur, elles, répondent 401).
     check_url "https://jdr.pazpop.net/sante"
     ;;
   arcadepipe)

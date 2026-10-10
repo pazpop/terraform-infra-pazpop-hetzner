@@ -18,7 +18,7 @@ Réalisé avec l'aide de [Claude](https://claude.com) pour explorer et accélér
 | Portail | Page statique auto-générée (`docker/portal/`) | `game.pazpop.net` liste les jeux déployés, à partir des labels `pazpop.portal.*` |
 | Jeux | `docker/arcadepipe/` | Routage Traefik et limites de ressources ; le code du jeu vit dans son propre repo |
 | Arbre généalogique | `docker/gramps/` | Gramps Web (image officielle épinglée) ; données privées, hors portail ; outillage dans le repo `gramps-web` |
-| Aide de jeu de rôle | `docker/jdr/` | Site statique derrière un mot de passe (`jdr.pazpop.net`), hors portail ; le site vit dans un repo privé |
+| Aide de jeu de rôle | `docker/jdr/` | Pages derrière un mot de passe et écran des joueurs (`jdr.pazpop.net`), hors portail ; le site vit dans un repo privé |
 | État Terraform | Local (gitignoré) | Un seul opérateur, une seule VPS |
 
 ```

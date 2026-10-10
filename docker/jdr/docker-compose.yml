@@ -1,5 +1,6 @@
-# Aide de jeu de rôle du meneur, sur jdr.pazpop.net : un site statique derrière un
-# mot de passe (Caddy, basic auth). L'image est publiée sur GHCR par le CI du
+# Aide de jeu de rôle du meneur, sur jdr.pazpop.net : ses pages derrière un mot de
+# passe (Caddy, basic auth) et l'écran des joueurs, sans mot de passe (un lien par
+# joueur). L'image est publiée sur GHCR par le CI du
 # dépôt privé github.com/pazpop/jdr_co-cthulhu ; elle est privée elle aussi, le
 # VPS la télécharge avec un jeton de lecture (voir README.md).
 #
