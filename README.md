@@ -18,13 +18,14 @@ Réalisé avec l'aide de [Claude](https://claude.com) pour explorer et accélér
 | Portail | Page statique auto-générée (`docker/portal/`) | `game.pazpop.net` liste les jeux déployés, à partir des labels `pazpop.portal.*` |
 | Jeux | `docker/arcadepipe/` | Routage Traefik et limites de ressources ; le code du jeu vit dans son propre repo |
 | Arbre généalogique | `docker/gramps/` | Gramps Web (image officielle épinglée) ; données privées, hors portail ; outillage dans le repo `gramps-web` |
+| Aide de jeu de rôle | `docker/jdr/` | Site statique derrière un mot de passe (`jdr.pazpop.net`), hors portail ; le site vit dans un repo privé |
 | État Terraform | Local (gitignoré) | Un seul opérateur, une seule VPS |
 
 ```
 terraform/   # ce que gère tofu : VPS, firewall, clé SSH, IP, cloud-init
-docker/      # traefik/, portal/, arcadepipe/, gramps/ : déployés en docker-compose, pas via tofu
+docker/      # traefik/, portal/, arcadepipe/, gramps/, jdr/ : déployés en docker-compose, pas via tofu
 backup/      # backups quotidiens (timers systemd) : DB SQLite d'arcadepipe, Gramps Web
-deploy.sh    # déploie une stack (traefik, portal, arcadepipe ou gramps) sur le VPS
+deploy.sh    # déploie une stack (traefik, portal, arcadepipe, gramps ou jdr) sur le VPS
 ```
 
 ## Utilisation

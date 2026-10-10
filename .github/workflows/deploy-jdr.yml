@@ -1,0 +1,53 @@
+name: Deploy JDR
+
+# Déclenché par le CI de jdr_co-cthulhu (repo privé) une fois l'image poussée sur
+# GHCR. `workflow_dispatch` : redéploiement manuel depuis l'onglet Actions.
+# Même mécanique que deploy-arcadepipe.yml, qui en commente chaque étape.
+on:
+  repository_dispatch:
+    types: [jdr-published]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-jdr
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Seul docker-compose.yml est copié : .env (mot de passe du site) reste celui
+      # déposé sur le VPS par `./deploy.sh jdr`.
+      - name: Sync docker-compose.yml
+        uses: appleboy/scp-action@ff85246acaad7bdce478db94a363cd2bf7c90345 # v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: 2222
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
+          source: docker/jdr/docker-compose.yml
+          target: ~/jdr
+          strip_components: 2
+
+      # L'image est privée : le VPS la télécharge avec la connexion à GHCR faite
+      # une fois à la main (docker/jdr/README.md).
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: 2222
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          fingerprint: ${{ secrets.DEPLOY_SSH_FINGERPRINT }}
+          script: |
+            set -e
+            cd ~/jdr
+            docker compose pull
+            docker compose up -d --wait --remove-orphans
+            docker image prune -f

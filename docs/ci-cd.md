@@ -21,6 +21,8 @@ sequenceDiagram
 
 ## Mise en place
 
+Le site `jdr.pazpop.net` suit le même schéma, avec `deploy-jdr.yml` et l'événement `jdr-published` : voir [docker/jdr/README.md](../docker/jdr/README.md). Ce qui suit décrit arcadepipe.
+
 1. **Workflow receveur** (`.github/workflows/deploy-arcadepipe.yml`, ce repo) : écoute `repository_dispatch: [arcadepipe-published]` et `workflow_dispatch` (redéploiement manuel : onglet *Actions*, *Deploy ArcadePipe*, *Run workflow*). Pour un retour arrière, renseigner `tag` avec le SHA complet d'un commit d'arcadepipe : ses images `:<sha>` sont retaguées `:latest` sur le VPS ; vide, c'est la dernière version.
 2. **Workflow émetteur** (`deploy.yml`, repo `arcadepipe`) : build, push sur GHCR, puis notification via `peter-evans/repository-dispatch`, protégée par `if: github.repository == 'pazpop/arcadepipe'` (un fork build ses images sans tenter ce déclenchement).
 3. **Secrets de ce repo** : `DEPLOY_HOST` (adresse du serveur), `DEPLOY_USER` (`deploy`), `DEPLOY_SSH_KEY` (la clé privée `~/.ssh/arcadepipe_vps` : cloud-init n'installe qu'une clé publique, GitHub détient donc la même clé que l'opérateur, avec les mêmes droits sur le serveur), et `DEPLOY_SSH_FINGERPRINT` (empreinte de la clé d'hôte ; sans elle, les actions SCP/SSH acceptent n'importe quelle clé, donc pas de protection MITM). **Point non intuitif** : ces actions négocient une clé **ECDSA** (bibliothèque SSH de Go), pas ED25519 comme OpenSSH. Prendre la ligne `(ECDSA)` de :

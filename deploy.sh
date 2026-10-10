@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Déploie une stack Docker Compose (traefik, portal, arcadepipe ou gramps) sur le VPS :
+# Déploie une stack Docker Compose (traefik, portal, arcadepipe, gramps ou jdr) sur le VPS :
 # transfert, pull, démarrage, vérification — regroupés pour n'en oublier aucun en
 # plein incident.
 #
-# Usage : ./deploy.sh <traefik|portal|arcadepipe|gramps> [--dry-run]
+# Usage : ./deploy.sh <traefik|portal|arcadepipe|gramps|jdr> [--dry-run]
 set -euo pipefail
 
-USAGE="Usage: ./deploy.sh <traefik|portal|arcadepipe|gramps> [--dry-run]"
+USAGE="Usage: ./deploy.sh <traefik|portal|arcadepipe|gramps|jdr> [--dry-run]"
 DRY_RUN=false
 STACK=""
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
-    traefik|portal|arcadepipe|gramps) STACK="$arg" ;;
+    traefik|portal|arcadepipe|gramps|jdr) STACK="$arg" ;;
     *)
       echo "Argument inconnu : '$arg'" >&2
       echo "$USAGE" >&2
@@ -62,6 +62,13 @@ if [ "$STACK" = "gramps" ]; then
   GRAMPS_EXPOSE="$(sed -n 's/^GRAMPS_EXPOSE=//p' "$DOCKER_DIR/gramps/.env" | tail -n 1 | tr -d '\r')"
 fi
 
+# jdr : .env (identifiant, empreinte du mot de passe du site) est gitignoré et
+# voyage dans l'archive. Sans lui, personne ne pourrait entrer sur le site.
+if [ "$STACK" = "jdr" ] && [ ! -f "$DOCKER_DIR/jdr/.env" ]; then
+  echo "docker/jdr/.env manquant : cp docker/jdr/.env.example docker/jdr/.env (voir docker/jdr/README.md)" >&2
+  exit 1
+fi
+
 HOST="$(cd "$TERRAFORM_DIR" && tofu output -raw server_ip)"
 
 echo "== Déploiement de '$STACK' sur $HOST $($DRY_RUN && echo '(dry-run — rien ne sera modifié)') =="
@@ -84,7 +91,7 @@ run remote "tar xzf ~/${STACK}.tar.gz && cd ~/$STACK && docker compose pull"
 # supprimé du dépôt ne reste pas sur le VPS (Traefik chargerait encore un ancien
 # dynamic/*.yml). Rien n'y est à garder : les données sont dans des volumes
 # Docker, et les fichiers non versionnés de gramps voyagent dans l'archive.
-# $STACK vaut forcément l'un des quatre noms acceptés plus haut.
+# $STACK vaut forcément l'un des noms acceptés plus haut.
 run remote "rm -rf ~/$STACK && tar xzf ~/${STACK}.tar.gz && rm ~/${STACK}.tar.gz"
 
 # --force-recreate : sans lui, un conteneur dont seul un fichier monté a changé
@@ -153,6 +160,10 @@ case "$STACK" in
     else
       echo "$GRAMPS_DOMAIN : non exposé (GRAMPS_EXPOSE=false) — créer le compte propriétaire, voir docker/gramps/README.md"
     fi
+    ;;
+  jdr)
+    # /sante : la seule adresse sans mot de passe (le reste répond 401).
+    check_url "https://jdr.pazpop.net/sante"
     ;;
   arcadepipe)
     check_url "https://arcadepipe.pazpop.net/"

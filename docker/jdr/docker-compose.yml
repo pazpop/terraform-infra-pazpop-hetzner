@@ -1,0 +1,67 @@
+# Aide de jeu de rôle du meneur, sur jdr.pazpop.net : un site statique derrière un
+# mot de passe (Caddy, basic auth). L'image est publiée sur GHCR par le CI du
+# dépôt privé github.com/pazpop/jdr_co-cthulhu ; elle est privée elle aussi, le
+# VPS la télécharge avec un jeton de lecture (voir README.md).
+#
+# Variables lues dans .env (gitignoré, voir .env.example) : MJ_UTILISATEUR,
+# MJ_MOT_DE_PASSE_HACHE.
+
+# Logs Docker plafonnés (10 Mo x 3 par conteneur) : le driver par défaut accumule à l'infini
+# et peut remplir le disque de la VPS.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  web:
+    image: ghcr.io/pazpop/jdr_co-cthulhu:latest
+    environment:
+      - MJ_UTILISATEUR
+      - MJ_MOT_DE_PASSE_HACHE
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    logging: *default-logging
+    read_only: true
+    tmpfs:
+      # /config, /data : dossiers de travail de Caddy. Aucun certificat ici,
+      # Traefik termine le TLS.
+      - /tmp
+      - /config
+      - /data
+    cap_drop:
+      - ALL
+    # NET_BIND_SERVICE : sans elle, Caddy ne peut pas écouter sur le port 80.
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    cpus: 0.25
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.jdr.rule=Host(`jdr.pazpop.net`)"
+      - "traefik.http.routers.jdr.entrypoints=websecure"
+      - "traefik.http.routers.jdr.tls.certresolver=letsencrypt"
+      # rate-limit@file : freine les essais de mot de passe (20 requêtes par seconde).
+      - "traefik.http.routers.jdr.middlewares=rate-limit@file,jdr-headers@docker"
+      - "traefik.http.services.jdr.loadbalancer.server.port=80"
+      # En-têtes de sécurité propres à ce site, déclarés ici plutôt que dans
+      # traefik/dynamic/middlewares.yml. La CSP de secure-headers bloquerait la
+      # page : son script, ses boutons (onclick) et ses polices (data:) sont
+      # écrits dans le fichier HTML lui-même, d'où 'unsafe-inline' et data:.
+      - "traefik.http.middlewares.jdr-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.jdr-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.jdr-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.jdr-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.jdr-headers.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.jdr-headers.headers.contentSecurityPolicy=default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; object-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+      - "traefik.http.middlewares.jdr-headers.headers.customResponseHeaders.Permissions-Policy=camera=(), microphone=(), geolocation=()"
+
+networks:
+  traefik-public:
+    name: traefik-public
+    external: true
