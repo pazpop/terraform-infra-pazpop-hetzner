@@ -27,6 +27,10 @@ mkdir -p "$DAILY_DIR" "$WEEKLY_DIR"
 # Données personnelles (personnes vivantes) : illisibles pour les autres comptes.
 chmod 700 "$BACKUP_DEST"
 
+# Un backup précédent tué en route (redémarrage du serveur) a pu laisser sa
+# copie de travail, en clair et au nom de root : retirée par un conteneur,
+# seul à en avoir le droit.
+docker run --rm -v "$BACKUP_DEST:/dest" "$IMAGE" sh -c 'rm -rf /dest/.work.*'
 WORK="$(mktemp -d "$BACKUP_DEST/.work.XXXXXX")"
 # Archive en cours d'écriture : un fichier caché, que la rotation ignore. Elle ne
 # prend son nom définitif qu'une fois complète : une archive tronquée (disque
