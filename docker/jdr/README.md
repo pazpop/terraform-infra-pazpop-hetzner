@@ -24,7 +24,7 @@ Ensuite, chaque push sur `main` de `jdr_co-cthulhu` déploie tout seul. `./deplo
 
 ## Notes
 
-- Sans identifiants, tout répond 401, sauf `/sante` (que `deploy.sh` interroge à la fin), la page `ecran.html` et les adresses `/direct/...` de l'écran des joueurs.
+- Sans identifiants, tout répond 401, sauf `/sante` (que `deploy.sh` interroge à la fin), la page `ecran.html` et les adresses `/direct/...` de l'écran des joueurs. Les icônes qu'un téléphone demande de lui-même (`/favicon.ico`, `/apple-touch-icon...`) répondent 404.
 - `.env` doit contenir l'identifiant **et** l'empreinte : avec une empreinte vide, le conteneur ne démarre pas.
 - **Changer le mot de passe change les liens des joueurs** et leurs codes QR : ils sont calculés à partir de son empreinte.
 - Un déploiement redémarre le conteneur : les écrans des joueurs se vident (leurs liens restent bons). Pas de déploiement pendant une partie.
