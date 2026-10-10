@@ -96,7 +96,7 @@ curl -sS https://arcadepipe.pazpop.net/api/health
 ./test-backup-restore.sh
 ```
 
-Contre la vraie API en prod : insère un score de test unique (nom horodaté) → backup → suppression en direct → restauration → vérifie le retour → nettoie (garanti même en cas d'échec, via un `trap` sur la sortie du script). À lancer à une heure creuse : un vrai score envoyé entre le backup et la restauration, quelques secondes, serait perdu. Le backup produit compte dans la rétention (7 quotidiens) : il chasse le plus ancien, puis il est supprimé avec le score de test. Il reste donc six sauvegardes quotidiennes jusqu'à la nuit suivante.
+Contre la vraie API en prod : insère un score de test unique (nom horodaté) → backup → suppression en direct → restauration → vérifie le retour → nettoie (garanti même en cas d'échec, via un `trap` sur la sortie du script). À lancer à une heure creuse : un vrai score envoyé entre le backup et la restauration, quelques secondes, serait perdu. Le backup produit va dans un dossier à part (`/var/backups/arcadepipe/test`), supprimé à la fin avec le score de test : les vraies sauvegardes ne sont pas touchées.
 
 ## Limites connues
 

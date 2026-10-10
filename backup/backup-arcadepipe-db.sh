@@ -8,7 +8,9 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
 # Destination locale ; un stockage distant s'ajoutera en plus (voir backup/README.md).
-BACKUP_DEST="/var/backups/arcadepipe"
+# test-backup-restore.sh en donne une autre : son backup, qui contient un score
+# de test, ne se mêle pas aux vrais et ne compte pas dans leur rétention.
+BACKUP_DEST="${BACKUP_DEST:-/var/backups/arcadepipe}"
 
 VOLUME="backend_data"
 DB_NAME="arcadepipe.db"

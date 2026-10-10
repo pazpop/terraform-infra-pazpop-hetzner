@@ -10,6 +10,8 @@ API_BASE="https://arcadepipe.pazpop.net"
 SSH_HOST="arcadepipe-vps"   # alias défini dans ~/.ssh/config
 REMOTE_BACKUP_SCRIPT="~/backup/backup-arcadepipe-db.sh"
 REMOTE_RESTORE_SCRIPT="~/backup/restore-arcadepipe-db.sh"
+# Dossier du backup de test, à part des vrais backups et supprimé à la fin.
+TEST_DEST="/var/backups/arcadepipe/test"
 
 # Nom unique par run (le nettoyage ne supprime que ce nom précis), au format
 # qu'accepte l'API : 8 caractères au plus, majuscules et chiffres. "T" suivi des
@@ -41,13 +43,10 @@ print(conn.execute(\\\"SELECT COUNT(*) FROM scores WHERE player_name = '${TEST_P
 # Nettoyage garanti même en cas d'échec (trap sur EXIT) : pas de faux score dans
 # le vrai classement, ni de backup qui le contient (le restaurer plus tard le
 # ferait revenir).
-BACKUP_PATH=""
 cleanup() {
   echo "[test] Nettoyage : suppression de ${TEST_PLAYER}..."
   delete_test_score || true
-  if [ -n "$BACKUP_PATH" ]; then
-    ssh "$SSH_HOST" "rm -f '$BACKUP_PATH' '/var/backups/arcadepipe/weekly/$(basename "$BACKUP_PATH")'" || true
-  fi
+  ssh "$SSH_HOST" "rm -rf '$TEST_DEST'" || true
 }
 trap cleanup EXIT
 
@@ -59,12 +58,19 @@ curl -sS -f -X POST "${API_BASE}/api/scores" \
   -d "{\"player_name\":\"${TEST_PLAYER}\",\"score\":42,\"wave\":1,\"kills\":1}" >/dev/null
 
 echo "[test] 2/6 — Backup (doit capturer ${TEST_PLAYER})..."
-BACKUP_OUTPUT="$(ssh "$SSH_HOST" "$REMOTE_BACKUP_SCRIPT")"
+BACKUP_OUTPUT="$(ssh "$SSH_HOST" "BACKUP_DEST='$TEST_DEST' $REMOTE_BACKUP_SCRIPT")"
 echo "$BACKUP_OUTPUT"
 # Extrait le chemin de la ligne "[backup] OK : /chemin/fichier.db (20K, ...)".
 BACKUP_PATH="$(echo "$BACKUP_OUTPUT" | awk -F'OK : ' '/OK :/{split($2,a," "); print a[1]}')"
 if [ -z "$BACKUP_PATH" ]; then
   echo "[test] ERREUR : impossible de déterminer le fichier de backup produit." >&2
+  exit 1
+fi
+# Le script du VPS date d'avant ce dossier de test : son backup est parti avec
+# les vrais. Il est retiré, et le test s'arrête.
+if [ "${BACKUP_PATH#"$TEST_DEST"/}" = "$BACKUP_PATH" ]; then
+  ssh "$SSH_HOST" "rm -f '$BACKUP_PATH'" || true
+  echo "[test] ERREUR : scripts du VPS à mettre à jour d'abord (./deploy-backup.sh)." >&2
   exit 1
 fi
 echo "[test] Fichier de backup : $BACKUP_PATH"
